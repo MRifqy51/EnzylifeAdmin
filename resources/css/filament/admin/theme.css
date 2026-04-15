@@ -1,0 +1,285 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+@layer base {
+    :root {
+        --sidebar-bg: #0F390F;
+        --sidebar-hover: #14532D;
+        --sidebar-active: #166534;
+    }
+}
+
+/* Sidebar */
+.fi-sidebar {
+    background-color: var(--sidebar-bg) !important;
+}
+
+/* Item */
+.fi-sidebar-item {
+    color: #ffffff !important;
+    border-radius: 8px;
+    margin: 4px;
+}
+
+/* Hover */
+.fi-sidebar-item:hover {
+    background-color: var(--sidebar-hover) !important;
+}
+
+/* Active */
+.fi-sidebar-item-active {
+    background-color: var(--sidebar-active) !important;
+}
+
+/* ─── Shared card base ──────────────────────────────────────── */
+.batch-card,
+.filter-card,
+.table-card {
+    background: #ffffff;
+    border: 1px solid #e2e8e5;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 4px rgba(45,74,62,.06);
+}
+ 
+/* ─── Batch card ────────────────────────────────────────────── */
+.batch-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+.batch-card__name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #1a3329;
+}
+.batch-card__code {
+    font-size: 0.78rem;
+    color: #4a6b5c;
+    margin-top: 1px;
+}
+.batch-card__badge {
+    background: #d1ede3;
+    color: #1a5c3a;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+    letter-spacing: .04em;
+}
+ 
+/* Progress */
+.batch-card__progress-wrap {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #4a6b5c;
+    margin-bottom: 4px;
+}
+.batch-card__progress-pct { font-weight: 600; color: #1a3329; }
+.batch-card__progress-track {
+    height: 7px;
+    background: #dce8e3;
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+.batch-card__progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3e6657, #2d4a3e);
+    border-radius: 99px;
+    transition: width .4s ease;
+}
+ 
+/* Body: radar + stats */
+.batch-card__body {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+.batch-card__radar-wrap {
+    flex-shrink: 0;
+}
+.batch-card__stats {
+    display: flex;
+    gap: 2rem;
+    flex: 1;
+    justify-content: center;
+}
+.batch-card__stat {
+    text-align: center;
+}
+.batch-card__stat-value {
+    display: block;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1a3329;
+    line-height: 1.2;
+}
+.batch-card__stat-label {
+    font-size: 0.72rem;
+    color: #6b8f7e;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+ 
+/* Footer */
+.batch-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e2ebe6;
+    font-size: 0.75rem;
+    color: #6b8f7e;
+}
+.batch-card__volume {
+    background: #f0f5f2;
+    color: #2d4a3e;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    border-radius: 5px;
+}
+ 
+/* ─── Filter card ───────────────────────────────────────────── */
+.filter-card__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1a3329;
+    margin-bottom: 1rem;
+}
+.filter-card__icon {
+    width: 16px;
+    height: 16px;
+    color: #3e6657;
+}
+.filter-card__row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.filter-card__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 180px;
+}
+.filter-card__label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #4a6b5c;
+}
+.filter-card__input {
+    border: 1px solid #cdd9d4;
+    border-radius: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+    color: #1a3329;
+    outline: none;
+    transition: border-color .2s;
+    background: #fafcfb;
+}
+.filter-card__input:focus {
+    border-color: #2d4a3e;
+    box-shadow: 0 0 0 3px rgba(45,74,62,.1);
+}
+.filter-card__actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+ 
+/* Buttons */
+.btn-apply {
+    background: #2d4a3e;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.45rem 1.1rem;
+    border-radius: 0.4rem;
+    border: none;
+    cursor: pointer;
+    transition: background .2s;
+}
+.btn-apply:hover { background: #1a3329; }
+ 
+.btn-export {
+    background: #fff;
+    color: #2d4a3e;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.45rem 1.1rem;
+    border-radius: 0.4rem;
+    border: 1.5px solid #2d4a3e;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background .2s;
+}
+.btn-export:hover { background: #f0f5f2; }
+ 
+/* ─── Table card ────────────────────────────────────────────── */
+.table-card__header {
+    margin-bottom: 0.9rem;
+}
+.table-card__title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1a3329;
+}
+.table-card__wrap {
+    overflow-x: auto;
+    border-radius: 0.5rem;
+    border: 1px solid #e2ebe6;
+}
+.sensor-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+.sensor-table thead tr {
+    background: #f0f5f2;
+}
+.sensor-table th {
+    padding: 0.65rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #3e6657;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    border-bottom: 1px solid #dce8e3;
+}
+.sensor-table td {
+    padding: 0.6rem 1rem;
+    color: #2c3e35;
+    border-bottom: 1px solid #f0f4f2;
+    white-space: nowrap;
+}
+.sensor-table tbody tr:hover { background: #f8fbf9; }
+.sensor-table tbody tr:last-child td { border-bottom: none; }
+.table-empty {
+    text-align: center;
+    color: #6b8f7e;
+    padding: 2rem !important;
+}
+.table-card__footer {
+    margin-top: 0.85rem;
+    font-size: 0.76rem;
+    color: #6b8f7e;
+    text-align: center;
+}
+
