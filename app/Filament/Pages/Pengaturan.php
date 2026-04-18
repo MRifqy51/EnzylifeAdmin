@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use App\Models\Setting;
 
 class Pengaturan extends Page implements Forms\Contracts\HasForms
 {
@@ -27,6 +28,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     protected string $view = 'filament.pages.pengaturan';
 
     public ?array $data = [];
+
 
     // ─────────────────────────────────────────
     // INIT
@@ -163,40 +165,23 @@ protected function rangeField(string $key, string $label): Grid
     // ─────────────────────────────────────────
     // SAVE
     // ─────────────────────────────────────────
-    public function save(): void
+public function save(): void
 {
     $data = $this->form->getState();
 
-    /** @var \App\Models\User $user */
-    $user = Auth::user();
+    $this->setting->update($data);
 
-        // PROFILE
-        $user->update([
-            'name' => $data['full_name'],
-            'email' => $data['email_address'],
-        ]);
+    \Filament\Notifications\Notification::make()
+        ->title('Berhasil disimpan')
+        ->success()
+        ->send();
+}
 
-        // PASSWORD (SAFE)
-        if (!empty($data['current_password']) || !empty($data['new_password'])) {
-
-            if (!Hash::check($data['current_password'], $user->password)) {
-                $this->addError('data.current_password', 'Password lama salah');
-                return;
-            }
-
-            if (empty($data['new_password'])) {
-                $this->addError('data.new_password', 'Password baru wajib diisi');
-                return;
-            }
-
-            $user->update([
-                'password' => Hash::make($data['new_password']),
-            ]);
-        }
-
-        Notification::make()
-            ->title('Berhasil disimpan')
-            ->success()
-            ->send();
+    // ─────────────────────────────────────────
+    // GETTERS
+    // ─────────────────────────────────────────
+    protected function getSettingProperty(): Setting
+    {
+        return Setting::firstOrCreate([]);
     }
 }

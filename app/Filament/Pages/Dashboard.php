@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Sensor;
+use App\Models\Setting;  
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 
@@ -12,6 +13,7 @@ class Dashboard extends Page
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedHome;
     protected static ?int $navigationSort = 1;
+
     public array $alerts = [];
 
     protected string $view = 'filament.pages.dashboard';
@@ -29,32 +31,36 @@ class Dashboard extends Page
     }
 
     public function mount(): void
-{
-    $this->alerts = $this->getAlerts();
-}
+    {
+        $this->alerts = $this->getAlerts();
+    }
 
     protected function getAlerts(): array
     {
         $sensor = Sensor::latest()->first();
+        $setting = Setting::first(); // ⬅️ AMBIL SETTING
 
-        if (!$sensor) return [];
+        if (!$sensor || !$setting) return [];
 
         $alerts = [];
 
-        // sementara pakai nilai default (nanti bisa ambil dari Pengaturan)
-        if ($sensor->ph < 4 || $sensor->ph > 6.5) {
+        // PH
+        if ($sensor->ph < $setting->ph_min || $sensor->ph > $setting->ph_max) {
             $alerts[] = "pH tidak normal ({$sensor->ph})";
         }
 
-        if ($sensor->temperature < 20 || $sensor->temperature > 35) {
+        // TEMPERATURE
+        if ($sensor->temperature < $setting->temperature_min || $sensor->temperature > $setting->temperature_max) {
             $alerts[] = "Suhu cairan tidak normal ({$sensor->temperature}°C)";
         }
 
-        if ($sensor->gas > 500) {
+        // GAS
+        if ($sensor->gas > $setting->gas_max) {
             $alerts[] = "Gas terlalu tinggi ({$sensor->gas} ppm)";
         }
 
-        if ($sensor->humidity < 40 || $sensor->humidity > 85) {
+        // HUMIDITY
+        if ($sensor->humidity < $setting->humidity_min || $sensor->humidity > $setting->humidity_max) {
             $alerts[] = "Kelembaban tidak normal ({$sensor->humidity}%)";
         }
 
