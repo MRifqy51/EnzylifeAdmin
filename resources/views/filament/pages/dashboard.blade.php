@@ -1,5 +1,6 @@
 <x-filament-panels::page>
 
+
     {{-- ===================== STATS ===================== --}}
     @php $stats = $this->getStats(); @endphp
 

@@ -12,6 +12,8 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 
 class Pengaturan extends Page implements Forms\Contracts\HasForms
 {
@@ -20,6 +22,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     protected static ?string $navigationLabel = 'Pengaturan';
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?int $navigationSort = 3;
 
     protected string $view = 'filament.pages.pengaturan';
 
@@ -54,97 +57,118 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     // ─────────────────────────────────────────
     // FORM
     // ─────────────────────────────────────────
-    public function form(Schema $schema): Schema
-    {
-        return $schema
-            ->statePath('data')
-            ->schema([
+public function form(Schema $schema): Schema
+{
+    return $schema
+        ->statePath('data')
+        ->schema([
 
-                // ── ACCOUNT ─────────────────────
-                Section::make('Account')
-                    ->schema([
-                        TextInput::make('full_name')
-                            ->label('Full Name')
-                            ->required(),
+            Tabs::make('Pengaturan Tabs')
+                ->tabs([
 
-                        TextInput::make('email_address')
-                            ->label('Email')
-                            ->email()
-                            ->required(),
-                    ])
-                    ->columns(2),
+                    // ======================
+                    // TAB: THRESHOLDS
+                    // ======================
+                    Tab::make('Thresholds')
+                        ->icon('heroicon-o-adjustments-horizontal')
+                        ->schema([
 
-                // ── PASSWORD ────────────────────
-                Section::make('Change Password')
-                    ->schema([
-                        TextInput::make('current_password')
-                            ->label('Current Password')
-                            ->password()
-                            ->dehydrated(false),
+                            Section::make('Thresholds')
+                                ->icon('heroicon-o-adjustments-horizontal')
+                                ->schema([
+                                    $this->rangeField('ph', 'pH'),
+                                    $this->rangeField('liquid_temp', 'Liquid Temp'),
+                                    $this->rangeField('gas', 'Gas'),
+                                    $this->rangeField('air_temp', 'Air Temp'),
+                                    $this->rangeField('humidity', 'Humidity'),
+                                ]),
 
-                        TextInput::make('new_password')
-                            ->label('New Password')
-                            ->password()
-                            ->rule(Password::defaults())
-                            ->dehydrated(false),
+                            Section::make('Data Interval')
+                                ->schema([
+                                    TextInput::make('collection_interval')
+                                        ->label('Interval (seconds)')
+                                        ->numeric()
+                                        ->minValue(5)
+                                        ->maxValue(3600)
+                                        ->required(),
+                                ]),
+                        ]),
 
-                        TextInput::make('confirm_password')
-                            ->label('Confirm Password')
-                            ->password()
-                            ->same('new_password')
-                            ->dehydrated(false),
-                    ])
-                    ->columns(3),
+                    // ======================
+                    // TAB: ACCOUNT
+                    // ======================
+                    Tab::make('Account')
+                        ->icon('heroicon-o-user')
+                        ->schema([
 
-                // ── THRESHOLDS (DRY)
-                Section::make('Thresholds')
-                    ->schema([
-                        $this->rangeField('ph', 'pH'),
-                        $this->rangeField('liquid_temp', 'Liquid Temp'),
-                        $this->rangeField('gas', 'Gas'),
-                        $this->rangeField('air_temp', 'Air Temp'),
-                        $this->rangeField('humidity', 'Humidity'),
-                    ]),
+                            Section::make('Account')
+                                ->icon('heroicon-o-user')
+                                ->schema([
+                                    TextInput::make('full_name')
+                                        ->label('Full Name')
+                                        ->required(),
 
-                // ── INTERVAL ───────────────────
-                Section::make('Data Interval')
-                    ->schema([
-                        TextInput::make('collection_interval')
-                            ->label('Interval (seconds)')
-                            ->numeric()
-                            ->minValue(5)
-                            ->maxValue(3600)
-                            ->required(),
-                    ]),
-            ]);
-    }
+                                    TextInput::make('email_address')
+                                        ->label('Email')
+                                        ->email()
+                                        ->required(),
+                                ])
+                                ->columns(2),
 
-    // ─────────────────────────────────────────
-    // DRY HELPER
-    // ─────────────────────────────────────────
-    protected function rangeField(string $key, string $label): Grid
-    {
-        return Grid::make(2)->schema([
-            TextInput::make("{$key}_min")
-                ->label("{$label} Min")
-                ->numeric()
-                ->required(),
+                            Section::make('Change Password')
+                                ->schema([
+                                    TextInput::make('current_password')
+                                        ->label('Current Password')
+                                        ->password()
+                                        ->dehydrated(false),
 
-            TextInput::make("{$key}_max")
-                ->label("{$label} Max")
-                ->numeric()
-                ->gte("{$key}_min")
-                ->required(),
+                                    TextInput::make('new_password')
+                                        ->label('New Password')
+                                        ->password()
+                                        ->rule(Password::defaults())
+                                        ->dehydrated(false),
+
+                                    TextInput::make('confirm_password')
+                                        ->label('Confirm Password')
+                                        ->password()
+                                        ->same('new_password')
+                                        ->dehydrated(false),
+                                ])
+                                ->columns(3),
+                        ]),
+                ])
+                ->columnSpanFull(),
+
         ]);
-    }
+}
 
+// ─────────────────────────────────────────
+// DRY HELPER
+// ─────────────────────────────────────────
+protected function rangeField(string $key, string $label): Grid
+{
+    return Grid::make(2)->schema([
+        TextInput::make("{$key}_min")
+            ->label("{$label} Min")
+            ->numeric()
+            ->required(),
+
+        TextInput::make("{$key}_max")
+            ->label("{$label} Max")
+            ->numeric()
+            ->gte("{$key}_min")
+            ->required(),
+    ]);
+}
     // ─────────────────────────────────────────
     // SAVE
     // ─────────────────────────────────────────
     public function save(): void
-    {
-        $data = $this->form->getState();
-        $user = Auth::user();
+{
+    $data = $this->form->getState();
+
+    /** @var \App\Models\User $user */
+    $user = Auth::user();
 
         // PROFILE
         $user->update([
