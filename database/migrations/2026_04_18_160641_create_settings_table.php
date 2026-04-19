@@ -14,19 +14,15 @@ return new class extends Migration
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
 
-            // PH
             $table->float('ph_min')->default(4);
             $table->float('ph_max')->default(6.5);
 
-            // TEMPERATURE
             $table->float('temperature_min')->default(20);
             $table->float('temperature_max')->default(35);
 
-            // GAS
             $table->float('gas_min')->default(0);
             $table->float('gas_max')->default(500);
 
-            // HUMIDITY
             $table->float('humidity_min')->default(40);
             $table->float('humidity_max')->default(85);
 

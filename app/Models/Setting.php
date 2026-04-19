@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
+    protected $table = 'settings';
+
     protected $fillable = [
         'ph_min',
         'ph_max',

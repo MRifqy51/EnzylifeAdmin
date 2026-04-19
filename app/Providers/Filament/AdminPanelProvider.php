@@ -29,8 +29,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
 
-            ->brandName('EnzyLife')
-            ->brandLogo(asset('images/living-lab.jpg'))
+            
+            ->brandLogo(asset('images/logo-enzylife.png'))
+            ->brandLogoHeight('50px')
 
             ->renderHook(
                 'panels::sidebar.footer',

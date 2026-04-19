@@ -6,23 +6,28 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('sensors', function (Blueprint $table) {
             $table->id();
-            $table->float('ph')->nullable();
-            $table->float('temperature')->nullable();
-            $table->float('gas')->nullable();
-            $table->float('humidity')->nullable();
 
-            // 🔥 STATUS
-            $table->enum('status', ['optimal', 'warning', 'danger'])
-                  ->default('optimal');
+            $table->foreignId('device_id')->constrained()->cascadeOnDelete();
+
+            $table->float('ph');
+            $table->float('temperature');
+            $table->float('gas');
+            $table->float('humidity');
 
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('sensors');
