@@ -28,6 +28,47 @@
 
     </div>
 
+    {{-- ===================== ALERT NOTIFICATION ===================== --}}
+@php $alerts = $this->getAlerts(); @endphp
+
+<div class="mb-6">
+    <div class="bg-white rounded-xl shadow p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">Notifikasi Alert</h2>
+
+            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                {{ count($alerts) > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                {{ count($alerts) > 0 ? count($alerts) . ' Alert' : 'Normal' }}
+            </span>
+        </div>
+
+        @if(count($alerts) > 0)
+            <div class="space-y-3">
+                @foreach($alerts as $alert)
+                    <div class="p-3 rounded-lg border
+                        {{ $alert['level'] === 'danger'
+                            ? 'bg-red-50 border-red-300 text-red-800'
+                            : 'bg-yellow-50 border-yellow-300 text-yellow-800' }}">
+                        
+                        <div class="flex items-center justify-between">
+                            <p class="font-semibold">
+                                {{ $alert['level'] === 'danger' ? '🚨 Bahaya' : '⚠️ Peringatan' }}
+                            </p>
+                            <span class="text-xs">{{ $alert['time'] }}</span>
+                        </div>
+
+                        <p class="text-sm mt-1">{{ $alert['message'] }}</p>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="p-3 rounded-lg bg-green-50 border border-green-300 text-green-700">
+                ✅ Semua parameter fermentasi dalam kondisi normal.
+            </div>
+        @endif
+    </div>
+</div>
+
     {{-- ===================== CHART ===================== --}}
     @php $chart = $this->getChartData(); @endphp
 
@@ -109,12 +150,30 @@
                         {
                             label: 'pH',
                             data: @json($chart['ph']),
-                            borderWidth: 2
+                            borderColor: '#36A2EB',
+                            backgroundColor: 'rgba(54,162,235,0.2)',
+                            tension: 0.4
                         },
                         {
                             label: 'Temperature',
                             data: @json($chart['temperature']),
-                            borderWidth: 2
+                            borderColor: '#FF6384',
+                            backgroundColor: 'rgba(255,99,132,0.2)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Gas',
+                            data: @json($chart['gas']),
+                            borderColor: '#FF9800',
+                            backgroundColor: 'rgba(255,152,0,0.2)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Humidity',
+                            data: @json($chart['humidity']),
+                            borderColor: '#4CAF50',
+                            backgroundColor: 'rgba(76,175,80,0.2)',
+                            tension: 0.4
                         }
                     ]
                 },
