@@ -6,6 +6,7 @@ use App\Models\Sensor;
 use Illuminate\Console\Command;
 use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
+use Illuminate\Support\Facades\Event; // Tambahkan ini
 
 class MqttListener extends Command
 {
@@ -53,13 +54,14 @@ class MqttListener extends Command
             }
 
             try {
-                Sensor::create([
+                $sensor = Sensor::create([
                     'device_id' => 1,
                     'temperature' => $data['temperature'] ?? null,
                     'humidity' => $data['humidity'] ?? null,
                     'gas' => $data['gas'] ?? null,
                     'ph' => $data['ph'] ?? null,
                 ]);
+
                 $maxData = 100;
                 $oldSensorIds = Sensor::latest()
                     ->skip($maxData)
@@ -69,6 +71,10 @@ class MqttListener extends Command
                 Sensor::whereIn('id', $oldSensorIds)->delete();
 
                 $this->info('Data saved to database.');
+
+                // Pemicu Real-time Event untuk Livewire/Filament
+                Event::dispatch('sensor-updated', $sensor->toArray());
+
             } catch (\Exception $e) {
                 $this->error('Database error: ' . $e->getMessage());
             }

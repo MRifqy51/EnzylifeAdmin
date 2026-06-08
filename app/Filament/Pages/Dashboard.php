@@ -16,8 +16,28 @@ class Dashboard extends Page
     protected static ?int $navigationSort = 1;
 
     public array $alerts = [];
+    public array $currentStats = []; // Menyimpan data statistik real-time
 
     protected string $view = 'filament.pages.dashboard';
+
+    public function mount(): void
+    {
+        $this->alerts = $this->getAlerts();
+        $this->currentStats = $this->getStats();
+    }
+
+    /**
+     * Fungsi ini akan dipanggil secara berkala oleh Livewire Polling
+     * untuk memperbarui grafik dan alert tanpa reload halaman.
+     */
+    public function updateData(): void
+    {
+        $this->alerts = $this->getAlerts();
+        $this->currentStats = $this->getStats();
+        
+        // Memaksa browser memicu fungsi gambar ulang grafik Chart.js
+        $this->dispatch('refreshChart', data: $this->getChartData());
+    }
 
     public function getStats(): array
     {
@@ -31,40 +51,35 @@ class Dashboard extends Page
         ];
     }
 
-    public function mount(): void
+    protected function getAlerts(): array
     {
-        $this->alerts = $this->getAlerts();
+        return Alert::with('sensor')
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($alert) {
+                return [
+                    'message' => $alert->message,
+                    'level' => $alert->level,
+                    'time' => $alert->created_at->format('H:i'),
+                    'sensor_id' => $alert->sensor_id,
+                ];
+            })
+            ->toArray();
     }
 
-    protected function getAlerts(): array
-{
-    return Alert::with('sensor')
-        ->latest()
-        ->take(5)
-        ->get()
-        ->map(function ($alert) {
-            return [
-                'message' => $alert->message,
-                'level' => $alert->level,
-                'time' => $alert->created_at->format('H:i'),
-                'sensor_id' => $alert->sensor_id,
-            ];
-        })
-        ->toArray();
-}
-
     public function getChartData(): array
-{
-    $data = Sensor::latest()->take(10)->get()->reverse();
+    {
+        $data = Sensor::latest()->take(10)->get()->reverse();
 
-    return [
-        'labels' => $data->pluck('created_at')->map(fn ($d) => $d->format('H:i'))->toArray(),
-        'ph' => $data->pluck('ph')->toArray(),
-        'temperature' => $data->pluck('temperature')->toArray(),
-        'gas' => $data->pluck('gas')->toArray(),
-        'humidity' => $data->pluck('humidity')->toArray(),
-    ];
-}
+        return [
+            'labels' => $data->pluck('created_at')->map(fn ($d) => $d->format('H:i'))->toArray(),
+            'ph' => $data->pluck('ph')->toArray(),
+            'temperature' => $data->pluck('temperature')->toArray(),
+            'gas' => $data->pluck('gas')->toArray(),
+            'humidity' => $data->pluck('humidity')->toArray(),
+        ];
+    }
 
     public function getTableData()
     {
