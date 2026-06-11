@@ -12,6 +12,7 @@ class Sensor extends Model
         'device_id',
         'ph',
         'temperature',
+        'liquid_temperature',
         'gas',
         'humidity',
     ];

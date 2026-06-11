@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('device_id')->constrained()->cascadeOnDelete();
 
             $table->float('ph');
+            $table->float('liquid_temperature'); 
             $table->float('temperature');
             $table->float('gas');
             $table->float('humidity');

@@ -35,15 +35,23 @@
             <div class="batch-card__stats">
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['ph'] }}</span>
-                    <span class="batch-card__stat-label">pH</span>
+                    <span class="batch-card__stat-label">pH Level</span>
                 </div>
                 <div class="batch-card__stat">
-                    <span class="batch-card__stat-value">{{ $batch['temp'] }}°</span>
-                    <span class="batch-card__stat-label">Temp</span>
+                    <span class="batch-card__stat-value">{{ $batch['air_temp'] }}°C</span>
+                    <span class="batch-card__stat-label">Air Temp</span>
+                </div>
+                <div class="batch-card__stat">
+                    <span class="batch-card__stat-value">{{ $batch['liq_temp'] }}°C</span>
+                    <span class="batch-card__stat-label">Liq Temp</span>
                 </div>
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['gas'] }}</span>
-                    <span class="batch-card__stat-label">ppm</span>
+                    <span class="batch-card__stat-label">Gas (ppm)</span>
+                </div>
+                <div class="batch-card__stat">
+                    <span class="batch-card__stat-value">{{ $batch['humidity'] }}%</span>
+                    <span class="batch-card__stat-label">Humidity</span>
                 </div>
             </div>
         </div>
@@ -118,21 +126,21 @@
                     <tr>
                         <th>Timestamp</th>
                         <th>pH Level</th>
+                        <th>Air Temp (°C)</th>
                         <th>Liquid Temp (°C)</th>
                         <th>Gas Conc. (ppm)</th>
                         <th>Humidity (%)</th>
-                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($readings as $row)
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($row->created_at)->format('M j, Y, h:i A') }}</td>
-                            <td>{{ $row->ph }}</td>
-                            <td>{{ $row->temperature }}</td>
-                            <td>{{ $row->gas }}</td>
-                            <td>{{ $row->humidity }}</td>
-                            <td>{{ $row->status }}</td>
+                            <td class="font-medium">{{ $row->ph }}</td>
+                            <td>{{ $row->temperature }}°C</td>
+                            <td>{{ $row->liquid_temperature }}°C</td>
+                            <td>{{ $row->gas }} ppm</td>
+                            <td>{{ $row->humidity }}%</td>
                         </tr>
                     @empty
                         <tr>

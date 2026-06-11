@@ -15,6 +15,7 @@ class SensorController extends Controller
         'device_id' => 'required|integer',
         'ph' => 'required|numeric',
         'temperature' => 'required|numeric',
+        'liquid_temperature' => 'required|numeric',
         'gas' => 'required|numeric',
         'humidity' => 'required|numeric',
     ]);

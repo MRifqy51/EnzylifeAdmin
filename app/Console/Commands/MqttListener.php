@@ -57,6 +57,7 @@ class MqttListener extends Command
                 $sensor = Sensor::create([
                     'device_id' => 1,
                     'temperature' => $data['temperature'] ?? null,
+                    'liquid_temperature' => $data['liquid_temperature'] ?? null,
                     'humidity' => $data['humidity'] ?? null,
                     'gas' => $data['gas'] ?? null,
                     'ph' => $data['ph'] ?? null,

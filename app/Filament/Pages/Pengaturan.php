@@ -36,23 +36,24 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     public function mount(): void
     {
         $user = Auth::user();
+        $setting = $this->getSettingProperty();
 
         $this->form->fill([
             'full_name' => $user?->name,
             'email_address' => $user?->email,
 
-            'ph_min' => 4,
-            'ph_max' => 6.5,
-            'liquid_temp_min' => 20,
-            'liquid_temp_max' => 35,
-            'gas_min' => 0,
-            'gas_max' => 500,
-            'air_temp_min' => 15,
-            'air_temp_max' => 32,
-            'humidity_min' => 40,
-            'humidity_max' => 85,
+            'ph_min' => $setting->ph_min,
+            'ph_max' => $setting->ph_max,
+            'temperature_min' => $setting->temperature_min,
+            'temperature_max' => $setting->temperature_max,
+            'liquid_temperature_min' => $setting->liquid_temperature_min,
+            'liquid_temperature_max' => $setting->liquid_temperature_max,
+            'gas_min' => $setting->gas_min,
+            'gas_max' => $setting->gas_max,
+            'humidity_min' => $setting->humidity_min,
+            'humidity_max' => $setting->humidity_max,
 
-            'collection_interval' => 30,
+            'collection_interval' => $setting->collection_interval,
         ]);
     }
 
@@ -79,10 +80,10 @@ public function form(Schema $schema): Schema
                                 ->icon('heroicon-o-adjustments-horizontal')
                                 ->schema([
                                     $this->rangeField('ph', 'pH'),
-                                    $this->rangeField('liquid_temp', 'Liquid Temp'),
-                                    $this->rangeField('gas', 'Gas'),
-                                    $this->rangeField('air_temp', 'Air Temp'),
-                                    $this->rangeField('humidity', 'Humidity'),
+                                        $this->rangeField('temperature', 'Air Temp'),
+                                        $this->rangeField('liquid_temperature', 'Liquid Temp'),
+                                        $this->rangeField('gas', 'Gas (ppm)'),
+                                        $this->rangeField('humidity', 'Humidity (%)'),
                                 ]),
 
                             Section::make('Data Interval')
@@ -153,11 +154,13 @@ protected function rangeField(string $key, string $label): Grid
         TextInput::make("{$key}_min")
             ->label("{$label} Min")
             ->numeric()
+            ->inputMode('decimal')
             ->required(),
 
         TextInput::make("{$key}_max")
             ->label("{$label} Max")
             ->numeric()
+            ->inputMode('decimal')
             ->gte("{$key}_min")
             ->required(),
     ]);
@@ -167,9 +170,26 @@ protected function rangeField(string $key, string $label): Grid
     // ─────────────────────────────────────────
 public function save(): void
 {
-    $data = $this->form->getState();
+    $formData = $this->form->getState();
 
-    $this->setting->update($data);
+    $user = Auth::user();
+        if ($user) {
+            $user->update([
+                'name' => $formData['full_name'],
+                'email' => $formData['email_address'],
+            ]);
+        }
+
+    $settingData = collect($formData)->only([
+        'ph_min', 'ph_max',
+        'temperature_min', 'temperature_max',
+        'liquid_temperature_min', 'liquid_temperature_max',
+        'gas_min', 'gas_max',
+        'humidity_min', 'humidity_max',
+        'collection_interval'
+    ])->toArray();
+
+    $this->getSettingProperty()->update($settingData);
 
     \Filament\Notifications\Notification::make()
         ->title('Berhasil disimpan')

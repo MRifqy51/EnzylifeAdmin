@@ -11,49 +11,37 @@ use Filament\Support\Icons\Heroicon;
 class Dashboard extends Page
 {
     protected static ?string $navigationLabel = 'Dashboard';
-
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedHome;
     protected static ?int $navigationSort = 1;
 
     public array $alerts = [];
-    public array $currentStats = []; // Menyimpan data statistik real-time
+    public array $currentStats = []; 
+    public array $recentLogs = []; // Tambahan untuk menampung data tabel secara reaktif
 
     protected string $view = 'filament.pages.dashboard';
 
     public function mount(): void
     {
-        $this->alerts = $this->getAlerts();
-        $this->currentStats = $this->getStats();
+        $this->updateDataState();
     }
 
     /**
-     * Fungsi ini akan dipanggil secara berkala oleh Livewire Polling
-     * untuk memperbarui grafik dan alert tanpa reload halaman.
+     * Memperbarui seluruh state data dashboard
      */
-    public function updateData(): void
-    {
-        $this->alerts = $this->getAlerts();
-        $this->currentStats = $this->getStats();
-        
-        // Memaksa browser memicu fungsi gambar ulang grafik Chart.js
-        $this->dispatch('refreshChart', data: $this->getChartData());
-    }
-
-    public function getStats(): array
+    protected function updateDataState(): void
     {
         $latest = Sensor::latest()->first();
-
-        return [
+        
+        $this->currentStats = [
             'ph' => $latest?->ph ?? 0,
             'temperature' => $latest?->temperature ?? 0,
+            'liquid_temperature' => $latest?->liquid_temperature ?? 0,
             'gas' => $latest?->gas ?? 0,
             'humidity' => $latest?->humidity ?? 0,
+            'status' => $latest?->status ?? 'optimal', // Mengambil status terbaru ('optimal', 'warning', 'danger')
         ];
-    }
 
-    protected function getAlerts(): array
-    {
-        return Alert::with('sensor')
+        $this->alerts = Alert::with('sensor')
             ->latest()
             ->take(5)
             ->get()
@@ -68,6 +56,17 @@ class Dashboard extends Page
             ->toArray();
     }
 
+    /**
+     * Fungsi yang dipanggil secara berkala oleh Livewire Polling
+     */
+    public function updateData(): void
+    {
+        $this->updateDataState();
+        
+        // Memicu event re-render grafik Chart.js dengan melemparkan array data langsung
+        $this->dispatch('refreshChart', chartData: $this->getChartData());
+    }
+
     public function getChartData(): array
     {
         $data = Sensor::latest()->take(10)->get()->reverse();
@@ -76,6 +75,7 @@ class Dashboard extends Page
             'labels' => $data->pluck('created_at')->map(fn ($d) => $d->format('H:i'))->toArray(),
             'ph' => $data->pluck('ph')->toArray(),
             'temperature' => $data->pluck('temperature')->toArray(),
+            'liquid_temperature' => $data->pluck('liquid_temperature')->toArray(),
             'gas' => $data->pluck('gas')->toArray(),
             'humidity' => $data->pluck('humidity')->toArray(),
         ];
