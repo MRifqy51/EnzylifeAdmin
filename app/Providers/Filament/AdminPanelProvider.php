@@ -18,6 +18,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Filament\Widgets\KesehatanSistemWidget; // Impor widget Kesehatan Sistem
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -29,10 +30,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
 
-            
             ->brandLogo(asset('images/logo-enzylife.png'))
             ->brandLogoHeight('50px')
-
+            ->brandName('ENZYLIFE')
+            
             ->renderHook(
                 'panels::sidebar.footer',
                 fn () => view('filament.sidebar.footer')
@@ -42,7 +43,12 @@ class AdminPanelProvider extends PanelProvider
                 \Illuminate\Auth\Middleware\Authenticate::class,
             ])
             ->colors([
-                'primary' => Color::Amber,
+                // Warna utama saat menu aktif/diklik (menggunakan warna amber bawaan kamu sebelumnya)
+                'primary' => Color::Amber, 
+                
+                // Mengubah tone abu-abu (gray) bawaan Filament menjadi sangat terang (Zinc/Slate ringan)
+                // Ini akan otomatis membuat teks menu yang TIDAK aktif menjadi putih/terang di atas background gelap Anda.
+                'gray' => Color::Zinc,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

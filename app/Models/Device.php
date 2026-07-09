@@ -12,6 +12,7 @@ class Device extends Model
         'name',
         'location',
         'user_id',
+        'sd_status', // Tambahkan kolom sd_status ke dalam fillable
     ];
 
     public function user()

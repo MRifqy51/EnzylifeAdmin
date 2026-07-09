@@ -3,10 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Models\Sensor;
+use App\Models\Device;
 use Illuminate\Console\Command;
 use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
-use Illuminate\Support\Facades\Event; // Tambahkan ini
+use Illuminate\Support\Facades\Event;
 
 class MqttListener extends Command
 {
@@ -54,6 +55,28 @@ class MqttListener extends Command
             }
 
             try {
+        // ===== 1. LOGIKA UPDATE STATUS SD CARD KESESUAIAN ALAT =====
+        $sdAvailable = $data['sd_available'] ?? false;
+
+        // Pastikan menggunakan model Device dan mencari ID 1
+        $device = Device::find(1);
+
+        if ($device) {
+            $currentStatus = $device->sd_status;
+            
+            if (!$sdAvailable && $currentStatus === 'CONNECTED') {
+                $newStatus = 'EJECTED';
+            } else {
+                $newStatus = $sdAvailable ? 'CONNECTED' : 'DISCONNECTED';
+            }
+
+            $device->update([
+                'sd_status' => $newStatus
+            ]);
+            $this->info('SD Card status updated to: ' . $newStatus);
+        }
+
+                // ===== 2. PROSES PENYIMPANAN DATA SENSOR BAWAAN =====
                 $sensor = Sensor::create([
                     'device_id' => 1,
                     'temperature' => $data['temperature'] ?? null,
@@ -63,6 +86,7 @@ class MqttListener extends Command
                     'ph' => $data['ph'] ?? null,
                 ]);
 
+                // Penghapusan otomatis data lama jika melebihi 100 baris
                 $maxData = 100;
                 $oldSensorIds = Sensor::latest()
                     ->skip($maxData)

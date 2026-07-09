@@ -282,4 +282,134 @@
     color: #6b8f7e;
     text-align: center;
 }
+/* ==========================================================
+   ENZYLIFE SIDEBAR - Modern Clean Version
+   ========================================================== */
 
+/* ===== Sidebar Background ===== */
+.fi-sidebar {
+    background: #0F390F !important;
+}
+
+/* ===== Menu Item ===== */
+.fi-sidebar-item {
+    margin: 6px 10px;
+}
+
+/* ===== Tombol Menu ===== */
+.fi-sidebar-item-button {
+    border-radius: 12px;
+    transition: all .25s ease;
+}
+
+/* ===== Icon Default ===== */
+.fi-sidebar-item-icon {
+    color: #E5E7EB !important;
+    width: 20px;
+    height: 20px;
+    transition: .25s;
+}
+
+/* ===== Text Default ===== */
+.fi-sidebar-item-label {
+    color: #FFFFFF !important;
+    font-size: 15px;
+    font-weight: 600;
+    transition: .25s;
+}
+
+/* ==========================
+   HOVER
+========================== */
+
+.fi-sidebar-item-btn{
+    border-radius:12px;
+    transition:all .25s ease;
+}
+
+.fi-sidebar-item-btn:hover{
+    background:#14532D !important;
+    transform:translateX(2px);
+}
+
+/* Paksa semua isi tetap putih */
+.fi-sidebar-item-btn:hover,
+.fi-sidebar-item-btn:hover *{
+    color:#ffffff !important;
+}
+
+.fi-sidebar-item-btn:hover svg{
+    color:#ffffff !important;
+}
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn{
+    background:#ffffff !important;
+    border-left:4px solid #16A34A;
+    box-shadow:0 4px 12px rgba(0,0,0,.12);
+}
+
+.fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon,
+.fi-sidebar-item.fi-active svg{
+    color:#166534 !important;
+    font-weight:700;
+}
+/* ===== Active Text ===== */
+.fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.fi-sidebar-item-active .fi-sidebar-item-label {
+    color: #166534 !important;
+    font-weight: 700;
+}
+
+/* ===== Active Icon ===== */
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon,
+.fi-sidebar-item-active .fi-sidebar-item-icon {
+    color: #166534 !important;
+}
+
+/* ===== Animasi Hover ===== */
+.fi-sidebar-item-button:hover {
+    transform: translateX(3px);
+}
+
+/* ===== Sidebar Logo ===== */
+.fi-sidebar-header {
+    padding-top: 14px;
+    padding-bottom: 20px;
+}
+
+/* ===== Spasi antar icon dan text ===== */
+.fi-sidebar-item-button {
+    gap: 12px;
+}
+/* Override bawaan Filament */
+
+.fi-sidebar-item:hover {
+    background: transparent !important;
+}
+
+.fi-sidebar-item-button:hover {
+    background-color: #14532D !important;
+}
+
+.fi-sidebar-item-button:hover::before,
+.fi-sidebar-item-button:hover::after {
+    background: transparent !important;
+}
+
+/* ================================
+   ENZYLIFE BRAND
+================================ */
+
+.fi-topbar-start a{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.fi-topbar-start a::after{
+    content:"ENZYLIFE";
+    font-size:24px;
+    font-weight:800;
+    color:#166534;
+    letter-spacing:.5px;
+}
