@@ -12,21 +12,27 @@ class KesehatanSistemWidget extends Widget
 {
     protected string $view = 'filament.widgets.kesehatan-sistem-widget';
 
+    // Pastikan ini aktif agar widget refresh setiap 5 detik
+    protected static ?string $pollingInterval = '5s';
+
     public $sdStatus = 'DISCONNECTED';
 
+    // mount dipanggil saat halaman pertama dimuat
     public function mount()
     {
         $this->updateStatus();
     }
 
+    // Fungsi ini dipanggil otomatis oleh Filament saat polling interval tercapai
     public function updateStatus()
     {
-        // Cari langsung record pertama di tabel devices menggunakan primary key 'id'
-        $device = Device::find(1);
+        // 1. Ambil data paling baru dengan query yang bersih
+        $device = Device::query()->where('id', 1)->first();
         
+        // 2. Update variabel $sdStatus
         $this->sdStatus = $device ? $device->sd_status : 'DISCONNECTED';
     }
-
+    
     public function ejectSDCard()
     {
         $server = '801f15e13a2145c89a3e83ce6fa60601.s1.eu.hivemq.cloud';
