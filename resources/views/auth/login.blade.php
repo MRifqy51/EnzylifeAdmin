@@ -31,16 +31,23 @@
 
     <div class="w-1/2 p-12 flex flex-col justify-center bg-gray-50">
 
-        <h2 class="text-2xl font-semibold text-teal-700 mb-8 text-center">
+        <h2 class="text-2xl font-semibold text-teal-700 mb-6 text-center">
             LOGIN
         </h2>
+
+        <!-- TAMBAHKAN BLOK INI: Untuk menampilkan pesan kesalahan sesuai test case -->
+        @if (session('error'))
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm text-center" role="alert">
+                <span class="block sm:inline">{{ session('error') }}</span>
+            </div>
+        @endif
 
         <form method="POST" action="{{ route('login.post') }}" class="space-y-6">
             @csrf
 
             <div>
                 <label class="text-sm text-gray-600">Email</label>
-                <input type="email" name="email" placeholder="Masukkan Email Anda"
+                <input type="email" name="email" placeholder="Masukkan Email Anda" value="{{ old('email') }}"
                     class="w-full border rounded-lg px-4 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-teal-500">
             </div>
 

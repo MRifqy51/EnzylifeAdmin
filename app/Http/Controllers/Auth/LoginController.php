@@ -28,7 +28,7 @@ class LoginController extends Controller
             return redirect('/admin');
         }
 
-        return back()->with('error', 'Login gagal');
+        return back()->with('error', 'Email atau Password salah');
     }
 
 }
