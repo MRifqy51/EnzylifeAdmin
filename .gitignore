@@ -22,3 +22,4 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/firmware/enzylife_esp32/secrets.h
