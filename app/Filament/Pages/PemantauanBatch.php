@@ -28,7 +28,7 @@ class PemantauanBatch extends Page
 
     public function getSubheading(): ?string
     {
-        return 'Track and manage all active fermentation batches';
+        return null;
     }
 
     // 🔥 Batch card
@@ -36,15 +36,21 @@ class PemantauanBatch extends Page
     {
         $latest = Sensor::latest('created_at')->first();
 
-        // Cari tahu tanggal pertama kali data masuk sebagai tanggal mulai fermentasi
+        // 1. Tentukan tanggal mulai fermentasi (Default: 11 Juli 2026 atau data sensor paling awal)
         $firstRecord = Sensor::oldest('created_at')->first();
-        $startedDate = $firstRecord ? $firstRecord->created_at->format('Y-m-d') : '2026-06-11';
+        $startDate = $firstRecord ? Carbon::parse($firstRecord->created_at) : Carbon::parse('2026-07-11');
+
+        // 2. Hitung progres otomatis (Target: 3 Bulan / 90 Hari)
+        $totalDaysNeeded = 90; 
+        $daysPassed = max(0, $startDate->diffInDays(now())); // Menghitung selisih hari dari tanggal mulai ke hari ini
+        
+        $progress = round(min(100, ($daysPassed / $totalDaysNeeded) * 100));
 
         return [
-            'name'     => 'Market Veggie Blend', // Diubah dari Citrus Peel
-            'code'     => 'ECO-V-01',          // Kode riset pertama
-            'status'   => 'ACTIVE',
-            'progress' => 12,                  // Progress disesuaikan awal fermentasi
+            'name'     => 'Fermentasi Eco Enzyme', // Diubah dari Market Veggie Blend
+            'code'     => 'ECO-V-01',              // Kode batch
+            'status'   => 'AKTIF',
+            'progress' => $progress,               // Progres otomatis dinamis %
 
             'ph'        => $latest?->ph ?? '—',
             'air_temp'  => $latest?->temperature ?? '—',
@@ -52,8 +58,8 @@ class PemantauanBatch extends Page
             'gas'       => $latest?->gas ?? '—',
             'humidity'  => $latest?->humidity ?? '—',
 
-            'started' => $startedDate,
-            'volume'  => '5L',                 // Menggunakan galon 5 Liter
+            'started' => $startDate->format('Y-m-d'),
+            'volume'  => '5L',                     // Menggunakan wadah 5 Liter
 
             'radar' => [
                 'pH'       => round(min(100, (($latest?->ph ?? 7) / 14) * 100)),
@@ -109,29 +115,29 @@ class PemantauanBatch extends Page
         return response()->streamDownload(function () use ($rows) {
             $h = fopen('php://output', 'w');
 
-            // 1. Tambah header kolom biar ada Air Temp dan Liquid Temp pisah
+            // Header kolom CSV Bahasa Indonesia
             fputcsv($h, [
-                'Timestamp',
-                'pH Level',
-                'Air Temp (°C)',
-                'Liquid Temp (°C)',
+                'Waktu (Timestamp)',
+                'Tingkat pH',
+                'Suhu Udara (°C)',
+                'Suhu Cairan (°C)',
                 'Gas (ppm)',
-                'Humidity (%)'
+                'Kelembapan (%)'
             ]);
 
-            // 2. Masukkan data dari database sesuai urutan header di atas
+            // Data sensor
             foreach ($rows as $r) {
                 fputcsv($h, [
-                    Carbon::parse($r->created_at)->format('M j, Y, H:i'),
+                    Carbon::parse($r->created_at)->format('d M Y, H:i'),
                     $r->ph,
-                    $r->temperature,          // Ini Air Temp
-                    $r->liquid_temperature,   // Ini Liquid Temp (Baru ditambahkan)
+                    $r->temperature,          
+                    $r->liquid_temperature,   
                     $r->gas,
                     $r->humidity,
                 ]);
             }
 
             fclose($h);
-        }, 'sensor-readings-' . now()->format('Y-m-d') . '.csv');
+        }, 'log-sensor-eco-enzyme-' . now()->format('Y-m-d') . '.csv');
     }
 }

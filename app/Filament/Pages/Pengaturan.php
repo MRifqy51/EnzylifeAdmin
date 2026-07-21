@@ -57,122 +57,128 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
         ]);
     }
 
+    public function getSubheading(): ?string
+    {
+        return null;
+    }
+
     // ─────────────────────────────────────────
     // FORM
     // ─────────────────────────────────────────
-public function form(Schema $schema): Schema
-{
-    return $schema
-        ->statePath('data')
-        ->schema([
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->statePath('data')
+            ->schema([
 
-            Tabs::make('Pengaturan Tabs')
-                ->tabs([
+                Tabs::make('Pengaturan Tabs')
+                    ->tabs([
 
-                    // ======================
-                    // TAB: THRESHOLDS
-                    // ======================
-                    Tab::make('Thresholds')
-                        ->icon('heroicon-o-adjustments-horizontal')
-                        ->schema([
+                        // ======================
+                        // TAB: BATAS AMBANG SENSOR
+                        // ======================
+                        Tab::make('Ambang Batas Sensor')
+                            ->icon('heroicon-o-adjustments-horizontal')
+                            ->schema([
 
-                            Section::make('Thresholds')
-                                ->icon('heroicon-o-adjustments-horizontal')
-                                ->schema([
-                                    $this->rangeField('ph', 'pH'),
-                                        $this->rangeField('temperature', 'Air Temp'),
-                                        $this->rangeField('liquid_temperature', 'Liquid Temp'),
+                                Section::make('Batas Ambang Nilai Sensor')
+                                    ->icon('heroicon-o-adjustments-horizontal')
+                                    ->schema([
+                                        $this->rangeField('ph', 'pH'),
+                                        $this->rangeField('temperature', 'Suhu Udara'),
+                                        $this->rangeField('liquid_temperature', 'Suhu Cairan'),
                                         $this->rangeField('gas', 'Gas (ppm)'),
-                                        $this->rangeField('humidity', 'Humidity (%)'),
-                                ]),
+                                        $this->rangeField('humidity', 'Kelembapan (%)'),
+                                    ]),
 
-                            Section::make('Data Interval')
-                                ->schema([
-                                    TextInput::make('collection_interval')
-                                        ->label('Interval (seconds)')
-                                        ->numeric()
-                                        ->minValue(5)
-                                        ->maxValue(3600)
-                                        ->required(),
-                                ]),
-                        ]),
+                                Section::make('Interval Pengambilan Data')
+                                    ->schema([
+                                        TextInput::make('collection_interval')
+                                            ->label('Interval Waktu (Detik)')
+                                            ->numeric()
+                                            ->minValue(5)
+                                            ->maxValue(3600)
+                                            ->required(),
+                                    ]),
+                            ]),
 
-                    // ======================
-                    // TAB: ACCOUNT
-                    // ======================
-                    Tab::make('Account')
-                        ->icon('heroicon-o-user')
-                        ->schema([
+                        // ======================
+                        // TAB: AKUN
+                        // ======================
+                        Tab::make('Akun Pengguna')
+                            ->icon('heroicon-o-user')
+                            ->schema([
 
-                            Section::make('Account')
-                                ->icon('heroicon-o-user')
-                                ->schema([
-                                    TextInput::make('full_name')
-                                        ->label('Full Name')
-                                        ->required(),
+                                Section::make('Informasi Akun')
+                                    ->icon('heroicon-o-user')
+                                    ->schema([
+                                        TextInput::make('full_name')
+                                            ->label('Nama Lengkap')
+                                            ->required(),
 
-                                    TextInput::make('email_address')
-                                        ->label('Email')
-                                        ->email()
-                                        ->required(),
-                                ])
-                                ->columns(2),
+                                        TextInput::make('email_address')
+                                            ->label('Alamat Email')
+                                            ->email()
+                                            ->required(),
+                                    ])
+                                    ->columns(2),
 
-                            Section::make('Change Password')
-                                ->schema([
-                                    TextInput::make('current_password')
-                                        ->label('Current Password')
-                                        ->password()
-                                        ->dehydrated(false),
+                                Section::make('Ubah Kata Sandi')
+                                    ->schema([
+                                        TextInput::make('current_password')
+                                            ->label('Kata Sandi Saat Ini')
+                                            ->password()
+                                            ->dehydrated(false),
 
-                                    TextInput::make('new_password')
-                                        ->label('New Password')
-                                        ->password()
-                                        ->rule(Password::defaults())
-                                        ->dehydrated(false),
+                                        TextInput::make('new_password')
+                                            ->label('Kata Sandi Baru')
+                                            ->password()
+                                            ->rule(Password::defaults())
+                                            ->dehydrated(false),
 
-                                    TextInput::make('confirm_password')
-                                        ->label('Confirm Password')
-                                        ->password()
-                                        ->same('new_password')
-                                        ->dehydrated(false),
-                                ])
-                                ->columns(3),
-                        ]),
-                ])
-                ->columnSpanFull(),
+                                        TextInput::make('confirm_password')
+                                            ->label('Konfirmasi Kata Sandi Baru')
+                                            ->password()
+                                            ->same('new_password')
+                                            ->dehydrated(false),
+                                    ])
+                                    ->columns(3),
+                            ]),
+                    ])
+                    ->columnSpanFull(),
 
+            ]);
+    }
+
+    // ─────────────────────────────────────────
+    // DRY HELPER
+    // ─────────────────────────────────────────
+    protected function rangeField(string $key, string $label): Grid
+    {
+        return Grid::make(2)->schema([
+            TextInput::make("{$key}_min")
+                ->label("{$label} Minimal")
+                ->numeric()
+                ->inputMode('decimal')
+                ->required(),
+
+            TextInput::make("{$key}_max")
+                ->label("{$label} Maksimal")
+                ->numeric()
+                ->inputMode('decimal')
+                ->gte("{$key}_min")
+                ->required(),
         ]);
-}
+    }
 
-// ─────────────────────────────────────────
-// DRY HELPER
-// ─────────────────────────────────────────
-protected function rangeField(string $key, string $label): Grid
-{
-    return Grid::make(2)->schema([
-        TextInput::make("{$key}_min")
-            ->label("{$label} Min")
-            ->numeric()
-            ->inputMode('decimal')
-            ->required(),
-
-        TextInput::make("{$key}_max")
-            ->label("{$label} Max")
-            ->numeric()
-            ->inputMode('decimal')
-            ->gte("{$key}_min")
-            ->required(),
-    ]);
-}
     // ─────────────────────────────────────────
     // SAVE
     // ─────────────────────────────────────────
-public function save(): void
-{
-    $formData = $this->form->getState();
+    public function save(): void
+    {
+        $formData = $this->form->getState();
 
-    $user = Auth::user();
+        $user = Auth::user();
         if ($user) {
             $user->update([
                 'name' => $formData['full_name'],
@@ -180,22 +186,22 @@ public function save(): void
             ]);
         }
 
-    $settingData = collect($formData)->only([
-        'ph_min', 'ph_max',
-        'temperature_min', 'temperature_max',
-        'liquid_temperature_min', 'liquid_temperature_max',
-        'gas_min', 'gas_max',
-        'humidity_min', 'humidity_max',
-        'collection_interval'
-    ])->toArray();
+        $settingData = collect($formData)->only([
+            'ph_min', 'ph_max',
+            'temperature_min', 'temperature_max',
+            'liquid_temperature_min', 'liquid_temperature_max',
+            'gas_min', 'gas_max',
+            'humidity_min', 'humidity_max',
+            'collection_interval'
+        ])->toArray();
 
-    $this->getSettingProperty()->update($settingData);
+        $this->getSettingProperty()->update($settingData);
 
-    \Filament\Notifications\Notification::make()
-        ->title('Berhasil disimpan')
-        ->success()
-        ->send();
-}
+        Notification::make()
+            ->title('Pengaturan Berhasil Disimpan')
+            ->success()
+            ->send();
+    }
 
     // ─────────────────────────────────────────
     // GETTERS

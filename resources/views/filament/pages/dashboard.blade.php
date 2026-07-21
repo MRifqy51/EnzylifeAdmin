@@ -7,27 +7,27 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-green-500">
-                <p class="text-sm text-gray-500 dark:text-gray-400">pH Level</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Tingkat pH</p>
                 <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ $currentStats['ph'] ?? 0 }}</p>
             </div>
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-yellow-500">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Air Temperature</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Suhu Udara</p>
                 <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ $currentStats['temperature'] ?? 0 }}°C</p>
             </div>
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-cyan-500">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Liquid Temp</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Suhu Cairan</p>
                 <p class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{{ $currentStats['liquid_temperature'] ?? 0 }}°C</p>
             </div>
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-red-500">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Gas (MQ-135)</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Konsentrasi Gas</p>
                 <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ $currentStats['gas'] ?? 0 }} ppm</p>
             </div>
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-blue-500">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Humidity</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Kelembapan</p>
                 <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ $currentStats['humidity'] ?? 0 }}%</p>
             </div>
 
@@ -90,10 +90,10 @@
                         <tr>
                             <th class="p-2 text-left">Waktu</th>
                             <th class="p-2 text-left">pH</th>
-                            <th class="p-2 text-left">Air Temp</th>
-                            <th class="p-2 text-left">Liquid Temp</th>
+                            <th class="p-2 text-left">Suhu Udara</th>
+                            <th class="p-2 text-left">Suhu Cairan</th>
                             <th class="p-2 text-left">Gas</th>
-                            <th class="p-2 text-left">Humidity</th>
+                            <th class="p-2 text-left">Kelembapan</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -154,7 +154,7 @@
                             borderWidth: 2
                         },
                         {
-                            label: 'Air Temp',
+                            label: 'Suhu Udara',
                             data: initialData.temperature,
                             borderColor: '#FF6384',
                             backgroundColor: 'rgba(255,99,132,0.1)',
@@ -162,7 +162,7 @@
                             borderWidth: 2
                         },
                         {
-                            label: 'Liquid Temp',
+                            label: 'Suhu Cairan',
                             data: initialData.liquid_temperature,
                             borderColor: '#00BCD4',
                             backgroundColor: 'rgba(0,188,212,0.1)',
@@ -178,7 +178,7 @@
                             borderWidth: 2
                         },
                         {
-                            label: 'Humidity',
+                            label: 'Kelembapan',
                             data: initialData.humidity,
                             borderColor: '#4CAF50',
                             backgroundColor: 'rgba(76,175,80,0.1)',
@@ -199,7 +199,6 @@
             });
         }
 
-        // PERBAIKAN: Menangkap struktur data event Livewire v3 dengan benar
         window.addEventListener('refreshChart', event => {
             const chartData = event.detail.chartData; 
             if (myChart && chartData) {

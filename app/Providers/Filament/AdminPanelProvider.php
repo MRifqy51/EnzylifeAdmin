@@ -32,7 +32,7 @@ class AdminPanelProvider extends PanelProvider
 
             ->brandLogo(asset('images/logo-enzylife.png'))
             ->brandLogoHeight('50px')
-            ->brandName('ENZYLIFE')
+            ->brandName('EnzyLife')
             
             ->renderHook(
                 'panels::sidebar.footer',

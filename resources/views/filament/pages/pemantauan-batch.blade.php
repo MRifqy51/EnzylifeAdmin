@@ -17,7 +17,7 @@
  
         {{-- Progress bar --}}
         <div class="batch-card__progress-wrap">
-            <span class="batch-card__progress-label">Fermentation Progress</span>
+            <span class="batch-card__progress-label">Progres Fermentasi</span>
             <span class="batch-card__progress-pct">{{ $batch['progress'] }}%</span>
         </div>
         <div class="batch-card__progress-track">
@@ -35,15 +35,15 @@
             <div class="batch-card__stats">
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['ph'] }}</span>
-                    <span class="batch-card__stat-label">pH Level</span>
+                    <span class="batch-card__stat-label">Tingkat pH</span>
                 </div>
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['air_temp'] }}°C</span>
-                    <span class="batch-card__stat-label">Air Temp</span>
+                    <span class="batch-card__stat-label">Suhu Udara</span>
                 </div>
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['liq_temp'] }}°C</span>
-                    <span class="batch-card__stat-label">Liq Temp</span>
+                    <span class="batch-card__stat-label">Suhu Cairan</span>
                 </div>
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['gas'] }}</span>
@@ -51,7 +51,7 @@
                 </div>
                 <div class="batch-card__stat">
                     <span class="batch-card__stat-value">{{ $batch['humidity'] }}%</span>
-                    <span class="batch-card__stat-label">Humidity</span>
+                    <span class="batch-card__stat-label">Kelembapan</span>
                 </div>
             </div>
         </div>
@@ -59,7 +59,7 @@
         {{-- Footer --}}
         <div class="batch-card__footer">
             <span class="batch-card__footer-meta">
-                🔬 Gas ID · Started {{ $batch['started'] }}
+                🔬 ID Batch · Dimulai {{ $batch['started'] }}
             </span>
             <span class="batch-card__volume">{{ $batch['volume'] }}</span>
         </div>
@@ -73,12 +73,12 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="filter-card__icon" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
             </svg>
-            Filter by Date Range
+            Filter Berdasarkan Rentang Tanggal
         </div>
  
         <div class="filter-card__row">
             <div class="filter-card__field">
-                <label class="filter-card__label">Start Date</label>
+                <label class="filter-card__label">Tanggal Mulai</label>
                 <input
                     type="date"
                     wire:model="startDate"
@@ -86,7 +86,7 @@
                 />
             </div>
             <div class="filter-card__field">
-                <label class="filter-card__label">End Date</label>
+                <label class="filter-card__label">Tanggal Selesai</label>
                 <input
                     type="date"
                     wire:model="endDate"
@@ -95,13 +95,13 @@
             </div>
             <div class="filter-card__actions">
                 <button wire:click="applyFilter" class="btn-apply">
-                    Apply Filter
+                    Terapkan Filter
                 </button>
                 <button wire:click="exportCsv" class="btn-export">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:14px;height:14px;display:inline;margin-right:4px;">
                         <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
                     </svg>
-                    Export CSV
+                    Ekspor CSV
                 </button>
             </div>
         </div>
@@ -117,25 +117,25 @@
  
     <div class="table-card">
         <div class="table-card__header">
-            <span class="table-card__title">Sensor Readings</span>
+            <span class="table-card__title">Riwayat Pembacaan Sensor</span>
         </div>
  
         <div class="table-card__wrap">
             <table class="sensor-table">
                 <thead>
                     <tr>
-                        <th>Timestamp</th>
-                        <th>pH Level</th>
-                        <th>Air Temp (°C)</th>
-                        <th>Liquid Temp (°C)</th>
-                        <th>Gas Conc. (ppm)</th>
-                        <th>Humidity (%)</th>
+                        <th>Waktu (Timestamp)</th>
+                        <th>Tingkat pH</th>
+                        <th>Suhu Udara (°C)</th>
+                        <th>Suhu Cairan (°C)</th>
+                        <th>Konsentrasi Gas (ppm)</th>
+                        <th>Kelembapan (%)</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($readings as $row)
                         <tr>
-                            <td>{{ \Carbon\Carbon::parse($row->created_at)->format('M j, Y, h:i A') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($row->created_at)->format('d M Y, H:i') }} WIB</td>
                             <td class="font-medium">{{ $row->ph }}</td>
                             <td>{{ $row->temperature }}°C</td>
                             <td>{{ $row->liquid_temperature }}°C</td>
@@ -144,7 +144,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="table-empty">No sensor data found.</td>
+                            <td colspan="6" class="table-empty">Data sensor tidak ditemukan.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -152,7 +152,7 @@
         </div>
  
         <div class="table-card__footer">
-            Showing first {{ $readings->count() }} of {{ $totalCount }} records. Export to CSV for full data.
+            Menampilkan {{ $readings->count() }} dari total {{ $totalCount }} data. Ekspor ke CSV untuk mengunduh seluruh data.
         </div>
     </div>
  
