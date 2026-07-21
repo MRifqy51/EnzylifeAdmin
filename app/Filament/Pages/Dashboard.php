@@ -31,25 +31,27 @@ class Dashboard extends Page
     protected function updateDataState(): void
     {
         $latest = Sensor::latest()->first();
-        
+
         $this->currentStats = [
-            'ph' => $latest?->ph ?? 0,
-            'temperature' => $latest?->temperature ?? 0,
+            'ph'                 => $latest?->ph ?? 0,
+            'temperature'        => $latest?->temperature ?? 0,
             'liquid_temperature' => $latest?->liquid_temperature ?? 0,
-            'gas' => $latest?->gas ?? 0,
-            'humidity' => $latest?->humidity ?? 0,
-            'status' => $latest?->status ?? 'optimal', // Mengambil status terbaru ('optimal', 'warning', 'danger')
+            'gas'                => $latest?->gas ?? 0,
+            'humidity'           => $latest?->humidity ?? 0,
+            'status'             => $latest?->status ?? 'optimal',
         ];
 
-        $this->alerts = Alert::with('sensor')
+        // 🔥 Hanya tampilkan alert yang belum resolved
+        $this->alerts = Alert::whereNull('resolved_at')
             ->latest()
             ->take(5)
             ->get()
             ->map(function ($alert) {
                 return [
-                    'message' => $alert->message,
-                    'level' => $alert->level,
-                    'time' => $alert->created_at->format('H:i'),
+                    'id'        => $alert->id,
+                    'message'   => $alert->message,
+                    'level'     => $alert->level,
+                    'time'      => $alert->created_at->format('H:i'),
                     'sensor_id' => $alert->sensor_id,
                 ];
             })

@@ -9,8 +9,10 @@ class Alert extends Model
 {
     protected $fillable = [
         'sensor_id',
+        'type',
         'message',
         'level',
+        'resolved_at',
     ];
 
     public function sensor()
