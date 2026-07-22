@@ -36,21 +36,23 @@ class PemantauanBatch extends Page
     {
         $latest = Sensor::latest('created_at')->first();
 
-        // 1. Tentukan tanggal mulai fermentasi (Default: 11 Juli 2026 atau data sensor paling awal)
-        $firstRecord = Sensor::oldest('created_at')->first();
-        $startDate = $firstRecord ? Carbon::parse($firstRecord->created_at) : Carbon::parse('2026-07-11');
+        // 1. Dibuat KUNCI (HARDCODE) di tanggal 11 Juli 2026
+        $startDate = Carbon::parse('2026-07-11');
 
         // 2. Hitung progres otomatis (Target: 3 Bulan / 90 Hari)
         $totalDaysNeeded = 90; 
-        $daysPassed = max(0, $startDate->diffInDays(now())); // Menghitung selisih hari dari tanggal mulai ke hari ini
         
+        // Menghitung selisih hari dari 11 Juli 2026 sampai HARI INI
+        $daysPassed = max(0, $startDate->diffInDays(now())); 
+        
+        // Hitung persentase progres
         $progress = round(min(100, ($daysPassed / $totalDaysNeeded) * 100));
 
         return [
-            'name'     => 'Fermentasi Eco Enzyme', // Diubah dari Market Veggie Blend
-            'code'     => 'ECO-V-01',              // Kode batch
+            'name'     => 'Fermentasi Eco Enzyme',
+            'code'     => 'ECO-V-01',
             'status'   => 'AKTIF',
-            'progress' => $progress,               // Progres otomatis dinamis %
+            'progress' => $progress, // Persentase akan otomatis dihitung dari 11 Juli
 
             'ph'        => $latest?->ph ?? '—',
             'air_temp'  => $latest?->temperature ?? '—',
@@ -58,8 +60,8 @@ class PemantauanBatch extends Page
             'gas'       => $latest?->gas ?? '—',
             'humidity'  => $latest?->humidity ?? '—',
 
-            'started' => $startDate->format('Y-m-d'),
-            'volume'  => '5L',                     // Menggunakan wadah 5 Liter
+            'started' => $startDate->format('Y-m-d'), // Akan selalu menampilkan 2026-07-11
+            'volume'  => '5L',
 
             'radar' => [
                 'pH'       => round(min(100, (($latest?->ph ?? 7) / 14) * 100)),

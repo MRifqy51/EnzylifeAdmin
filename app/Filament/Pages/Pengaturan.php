@@ -29,7 +29,6 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
 
     public ?array $data = [];
 
-
     // ─────────────────────────────────────────
     // INIT
     // ─────────────────────────────────────────
@@ -96,7 +95,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                         TextInput::make('collection_interval')
                                             ->label('Interval Waktu (Detik)')
                                             ->numeric()
-                                            ->minValue(5)
+                                            ->minValue(1) // 👈 Ubah min ke 1 agar angka < 5 diperbolehkan
                                             ->maxValue(3600)
                                             ->required(),
                                     ]),
@@ -176,8 +175,10 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     // ─────────────────────────────────────────
     public function save(): void
     {
+        // 1. Ambil data form yang tervalidasi
         $formData = $this->form->getState();
 
+        // 2. Update data User
         $user = Auth::user();
         if ($user) {
             $user->update([
@@ -186,6 +187,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             ]);
         }
 
+        // 3. Simpan setting ke Database
         $settingData = collect($formData)->only([
             'ph_min', 'ph_max',
             'temperature_min', 'temperature_max',
@@ -195,7 +197,11 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             'collection_interval'
         ])->toArray();
 
-        $this->getSettingProperty()->update($settingData);
+        $setting = $this->getSettingProperty();
+        $setting->update($settingData);
+
+        // 4. MENGUNCI ISI FORM: Isi ulang form dari data tersimpan
+        $this->form->fill($formData);
 
         Notification::make()
             ->title('Pengaturan Berhasil Disimpan')
