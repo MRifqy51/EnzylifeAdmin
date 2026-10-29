@@ -23,7 +23,7 @@
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-red-500">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Gas (MQ-135)</p>
-                <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ $currentStats['gas'] ?? 0 }} ppm</p>
+                <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ $currentStats['gas'] ?? 0 }} ADC</p>
             </div>
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-blue-500">
@@ -71,12 +71,25 @@
                 @endif
             </div>
         </div>
-
+            
         {{-- ===================== CHART ===================== --}}
         <div class="bg-white p-6 rounded-xl shadow mb-6 dark:bg-gray-800" wire:ignore>
-            <h2 class="text-lg font-semibold mb-4 dark:text-white">Grafik Real-time Sensor</h2>
-            <canvas id="sensorChart" height="100"></canvas>
-        </div>
+            <h2 class="text-lg font-semibold mb-2 dark:text-white">
+                Grafik Real-time Sensor EnzyLife
+            </h2>
+
+            <p class="text-sm text-gray-500 mb-4">
+                Klik nama sensor pada legenda untuk menampilkan
+                atau menyembunyikan garis grafik.
+            </p>
+           
+            <div class="relative w-full"
+                style="height: 500px;">
+                <canvas id="sensorChart"></canvas>
+            </div>
+
+
+
 
         {{-- ===================== TABLE ===================== --}}
         @php $rows = $this->getTableData(); @endphp
@@ -103,7 +116,7 @@
                                 <td class="p-2 font-medium">{{ $row->ph }}</td>
                                 <td class="p-2">{{ $row->temperature }}°C</td>
                                 <td class="p-2">{{ $row->liquid_temperature }}°C</td>
-                                <td class="p-2">{{ $row->gas }} ppm</td>
+                                <td class="p-2">{{ $row->gas }} Raw ADC</td>
                                 <td class="p-2">{{ $row->humidity }}%</td>
                             </tr>
                         @empty
@@ -129,89 +142,165 @@
         document.addEventListener('livewire:navigated', initChart);
 
         let myChart = null;
+                      
+            function initChart() {
+                const canvas = document.getElementById('sensorChart');
+                if (!canvas) return;
 
-        function initChart() {
-            const ctx = document.getElementById('sensorChart');
-            if (!ctx) return;
+                const initialData = @json($this->getChartData());
 
-            const initialData = @json($this->getChartData());
-
-            if (myChart) {
-                myChart.destroy();
-            }
-
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: initialData.labels,
-                    datasets: [
-                        {
-                            label: 'pH',
-                            data: initialData.ph,
-                            borderColor: '#36A2EB',
-                            backgroundColor: 'rgba(54,162,235,0.1)',
-                            tension: 0.3,
-                            borderWidth: 2
-                        },
-                        {
-                            label: 'Air Temp',
-                            data: initialData.temperature,
-                            borderColor: '#FF6384',
-                            backgroundColor: 'rgba(255,99,132,0.1)',
-                            tension: 0.3,
-                            borderWidth: 2
-                        },
-                        {
-                            label: 'Liquid Temp',
-                            data: initialData.liquid_temperature,
-                            borderColor: '#00BCD4',
-                            backgroundColor: 'rgba(0,188,212,0.1)',
-                            tension: 0.3,
-                            borderWidth: 2
-                        },
-                        {
-                            label: 'Gas',
-                            data: initialData.gas,
-                            borderColor: '#FF9800',
-                            backgroundColor: 'rgba(255,152,0,0.1)',
-                            tension: 0.3,
-                            borderWidth: 2
-                        },
-                        {
-                            label: 'Humidity',
-                            data: initialData.humidity,
-                            borderColor: '#4CAF50',
-                            backgroundColor: 'rgba(76,175,80,0.1)',
-                            tension: 0.3,
-                            borderWidth: 2
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: { beginAtZero: false }
-                    },
-                    plugins: {
-                        legend: { position: 'top' }
-                    }
+                // Bersihkan instance grafik dari konfigurasi sebelumnya
+                if (window.enzyCharts) {
+                    Object.values(window.enzyCharts).forEach(chart => {
+                        if (chart) chart.destroy();
+                    });
+                    window.enzyCharts = null;
                 }
-            });
-        }
 
-        // PERBAIKAN: Menangkap struktur data event Livewire v3 dengan benar
-        window.addEventListener('refreshChart', event => {
-            const chartData = event.detail.chartData; 
-            if (myChart && chartData) {
-                myChart.data.labels = chartData.labels;
-                myChart.data.datasets[0].data = chartData.ph;
-                myChart.data.datasets[1].data = chartData.temperature;
-                myChart.data.datasets[2].data = chartData.liquid_temperature;
-                myChart.data.datasets[3].data = chartData.gas;
-                myChart.data.datasets[4].data = chartData.humidity;
-                myChart.update('none'); 
+                if (myChart) {
+                    myChart.destroy();
+                }
+
+                myChart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: initialData.labels,
+                        datasets: [
+                            {
+                                label: 'pH',
+                                data: initialData.ph,
+                                borderColor: '#36A2EB',
+                                yAxisID: 'yPH',
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Suhu Cairan (°C)',
+                                data: initialData.liquid_temperature,
+                                borderColor: '#00BCD4',
+                                yAxisID: 'yTemp',
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Suhu Udara (°C) - Belum Valid',
+                                data: initialData.temperature,
+                                borderColor: '#FF6384',
+                                yAxisID: 'yAirTemp',
+                                hidden: false,
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Kelembapan (%) - Belum Valid',
+                                data: initialData.humidity,
+                                borderColor: '#4CAF50',
+                                yAxisID: 'yHumidity',
+                                hidden: false,
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Gas MQ-135 (Raw ADC)',
+                                data: initialData.gas,
+                                borderColor: '#FF9800',
+                                yAxisID: 'yGas',
+                                hidden: true,
+                                borderWidth: 2,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        scales: {
+                            yPH: {
+                                type: 'linear',
+                                position: 'left',
+                                min: 0,
+                                max: 14,
+                                title: {
+                                    display: true,
+                                    text: 'pH'
+                                }
+                            },
+                            yTemp: {
+                                type: 'linear',
+                                position: 'right',
+                                min: 20,
+                                max: 40,
+                                title: {
+                                    display: true,
+                                    text: 'Suhu (°C)'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            },                           
+                            yAirTemp: {
+                                type: 'linear',
+                                display: false,
+                                position: 'right',
+                                min: 0,
+                                max: 50,
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            },
+                            yHumidity: {
+                                type: 'linear',
+                                display: false,
+                                min: 0,
+                                max: 100
+                            },
+                            yGas: {
+                                type: 'linear',
+                                display: false,
+                                min: 0,
+                                max: 4095
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        }
+                    }
+                });
             }
+
+
+
+
+        // PERBAIKAN: Menangkap struktur data event Livewire v3 dengan benar              
+        window.addEventListener('refreshChart', event => {
+            const chartData = event.detail?.chartData;
+
+            if (!myChart || !chartData) return;
+
+            // Perbarui label waktu
+            myChart.data.labels = chartData.labels;
+
+            // Sesuai urutan dataset pada initChart()
+            myChart.data.datasets[0].data = chartData.ph;
+            myChart.data.datasets[1].data = chartData.liquid_temperature;
+            myChart.data.datasets[2].data = chartData.temperature;
+            myChart.data.datasets[3].data = chartData.humidity;
+            myChart.data.datasets[4].data = chartData.gas;
+
+            // Perbarui tanpa animasi
+            myChart.update('none');
         });
+
     </script>
     @endpush
 

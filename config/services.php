@@ -34,5 +34,16 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    
+    'hivemq' => [
+        'username' => env('HIVEMQ_USERNAME'),
+        'password' => env('HIVEMQ_PASSWORD'),
+    ],
+   
+    'fonnte' => [
+        'token' => env('FONNTE_API_TOKEN'),
+        'admin_phone' => env('FONNTE_ADMIN_PHONE'),
+    ],
+
 
 ];
