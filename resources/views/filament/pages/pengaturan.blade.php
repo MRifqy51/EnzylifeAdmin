@@ -1,10 +1,10 @@
 <x-filament-panels::page>
-    <form wire:submit="save">
+    <form wire:submit.prevent="save">
         {{ $this->form }}
-        
-        <div class="mt-6">
+
+        <div class="mt-6 flex justify-start">
             <x-filament::button type="submit">
-                Save All Settings
+                Simpan Semua Pengaturan
             </x-filament::button>
         </div>
     </form>

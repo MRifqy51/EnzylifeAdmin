@@ -15,7 +15,7 @@ class Dashboard extends Page
     protected static ?int $navigationSort = 1;
 
     public array $alerts = [];
-    public array $currentStats = []; 
+    public array $currentStats = [];
     public array $recentLogs = []; // Tambahan untuk menampung data tabel secara reaktif
 
     protected string $view = 'filament.pages.dashboard';
@@ -31,25 +31,36 @@ class Dashboard extends Page
     protected function updateDataState(): void
     {
         $latest = Sensor::latest()->first();
-        
+
         $this->currentStats = [
-            'ph' => $latest?->ph ?? 0,
-            'temperature' => $latest?->temperature ?? 0,
+            'ph'                 => $latest?->ph ?? 0,
+            'temperature'        => $latest?->temperature ?? 0,
             'liquid_temperature' => $latest?->liquid_temperature ?? 0,
-            'gas' => $latest?->gas ?? 0,
-            'humidity' => $latest?->humidity ?? 0,
-            'status' => $latest?->status ?? 'optimal', // Mengambil status terbaru ('optimal', 'warning', 'danger')
+            'gas'                => $latest?->gas ?? 0,
+            'humidity'           => $latest?->humidity ?? 0,
+            'status' => match (true) {
+                Alert::whereNull('resolved_at')
+                    ->where('level', 'danger')
+                    ->exists() => 'danger',
+
+                Alert::whereNull('resolved_at')
+                    ->where('level', 'warning')
+                    ->exists() => 'warning',
+
+                default => 'optimal',
+            },
         ];
 
-        $this->alerts = Alert::with('sensor')
-            ->latest()
+        // 🔥 Hanya tampilkan alert yang belum resolved
+        $this->alerts = Alert::latest()
             ->take(5)
             ->get()
             ->map(function ($alert) {
                 return [
-                    'message' => $alert->message,
-                    'level' => $alert->level,
-                    'time' => $alert->created_at->format('H:i'),
+                    'id'        => $alert->id,
+                    'message'   => $alert->message,
+                    'level'     => $alert->level,
+                    'time'      => $alert->created_at->format('H:i'),
                     'sensor_id' => $alert->sensor_id,
                 ];
             })
@@ -62,7 +73,7 @@ class Dashboard extends Page
     public function updateData(): void
     {
         $this->updateDataState();
-        
+
         // Memicu event re-render grafik Chart.js dengan melemparkan array data langsung
         $this->dispatch('refreshChart', chartData: $this->getChartData());
     }

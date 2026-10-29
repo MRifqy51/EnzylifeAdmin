@@ -102,13 +102,13 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                         // ==========================
                         // TAB: THRESHOLDS
                         // ==========================
-                        Tab::make('Thresholds')
+                        Tab::make('Ambang Batas Sensor')
                             ->icon(
                                 'heroicon-o-adjustments-horizontal'
                             )
                             ->schema([
 
-                                Section::make('Thresholds')
+                                Section::make('Batas Ambang Nilai Sensor')
                                     ->icon(
                                         'heroicon-o-adjustments-horizontal'
                                     )
@@ -143,14 +143,14 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                         ),
                                     ]),
 
-                                Section::make('Data Interval')
+                                Section::make('Interval Pengambilan Data')
                                     ->schema([
 
                                         TextInput::make(
                                             'collection_interval'
                                         )
                                             ->label(
-                                                'Interval (seconds)'
+                                                'Interval Waktu (Detik)'
                                             )
                                             ->numeric()
                                             ->minValue(5)
@@ -167,26 +167,26 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                         // ==========================
                         // TAB: ACCOUNT
                         // ==========================
-                        Tab::make('Account')
+                        Tab::make('Akun Pengguna')
                             ->icon('heroicon-o-user')
                             ->schema([
 
                                 // ======================
                                 // PROFIL ADMIN
                                 // ======================
-                                Section::make('Account')
+                                Section::make('Informasi Akun')
                                     ->icon('heroicon-o-user')
                                     ->schema([
 
                                         TextInput::make('full_name')
-                                            ->label('Full Name')
+                                            ->label('Nama Lengkap')
                                             ->required()
                                             ->maxLength(255),
 
                                         TextInput::make(
                                             'email_address'
                                         )
-                                            ->label('Email')
+                                            ->label('Alamat Email')
                                             ->email()
                                             ->required()
                                             ->maxLength(255),
@@ -242,7 +242,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                 // ======================
                                 // CHANGE PASSWORD
                                 // ======================
-                                Section::make('Change Password')
+                                Section::make('Ubah Kata Sandi')
                                     ->description(
                                         'Kosongkan seluruh kolom '
                                         . 'jika tidak ingin '
@@ -254,7 +254,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                             'current_password'
                                         )
                                             ->label(
-                                                'Current Password'
+                                                'Kata Sandi Saat Ini'
                                             )
                                             ->password()
                                             ->revealable()
@@ -274,7 +274,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                             'confirm_password'
                                         )
                                             ->label(
-                                                'Confirm Password'
+                                                'Konfirmasi Kata Sandi Baru'
                                             )
                                             ->password()
                                             ->revealable()

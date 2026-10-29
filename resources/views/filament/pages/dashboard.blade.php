@@ -39,10 +39,10 @@
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold dark:text-white">Notifikasi Alert</h2>
 
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold
-                        {{ count($alerts) > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' }}">
-                        {{ count($alerts) > 0 ? count($alerts) . ' Alert Terdeteksi' : 'Sistem Normal' }}
+                    <span class="px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        {{ count($alerts) }} Riwayat Alert Terbaru
                     </span>
+
                 </div>
 
                 @if(count($alerts) > 0)
@@ -52,7 +52,7 @@
                                 {{ $alert['level'] === 'danger'
                                     ? 'bg-red-50 border-red-300 text-red-800 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
                                     : 'bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-950/20 dark:border-yellow-800 dark:text-yellow-400' }}">
-                                
+
                                 <div class="flex items-center justify-between">
                                     <p class="font-semibold flex items-center gap-1">
                                         {{ $alert['level'] === 'danger' ? '🚨 Bahaya' : '⚠️ Peringatan' }}
@@ -71,7 +71,7 @@
                 @endif
             </div>
         </div>
-            
+
         {{-- ===================== CHART ===================== --}}
         <div class="bg-white p-6 rounded-xl shadow mb-6 dark:bg-gray-800" wire:ignore>
             <h2 class="text-lg font-semibold mb-2 dark:text-white">
@@ -82,7 +82,7 @@
                 Klik nama sensor pada legenda untuk menampilkan
                 atau menyembunyikan garis grafik.
             </p>
-           
+
             <div class="relative w-full"
                 style="height: 500px;">
                 <canvas id="sensorChart"></canvas>
@@ -142,7 +142,7 @@
         document.addEventListener('livewire:navigated', initChart);
 
         let myChart = null;
-                      
+
             function initChart() {
                 const canvas = document.getElementById('sensorChart');
                 if (!canvas) return;
@@ -241,7 +241,7 @@
                                 grid: {
                                     drawOnChartArea: false
                                 }
-                            },                           
+                            },
                             yAirTemp: {
                                 type: 'linear',
                                 display: false,
@@ -281,7 +281,7 @@
 
 
 
-        // PERBAIKAN: Menangkap struktur data event Livewire v3 dengan benar              
+        // PERBAIKAN: Menangkap struktur data event Livewire v3 dengan benar
         window.addEventListener('refreshChart', event => {
             const chartData = event.detail?.chartData;
 

@@ -64,9 +64,8 @@ return [
     | is set to "UTC" by default as it is suitable for most use cases.
     |
     */
-    
-    'timezone' => 'Asia/Jakarta',
 
+    'timezone' => 'Asia/Jakarta',
 
     /*
     |--------------------------------------------------------------------------

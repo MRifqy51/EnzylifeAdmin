@@ -32,8 +32,8 @@ class AdminPanelProvider extends PanelProvider
 
             ->brandLogo(asset('images/logo-enzylife.png'))
             ->brandLogoHeight('50px')
-            ->brandName('ENZYLIFE')
-            
+            ->brandName('EnzyLife')
+
             ->renderHook(
                 'panels::sidebar.footer',
                 fn () => view('filament.sidebar.footer')
@@ -44,8 +44,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->colors([
                 // Warna utama saat menu aktif/diklik (menggunakan warna amber bawaan kamu sebelumnya)
-                'primary' => Color::Amber, 
-                
+                'primary' => Color::Amber,
+
                 // Mengubah tone abu-abu (gray) bawaan Filament menjadi sangat terang (Zinc/Slate ringan)
                 // Ini akan otomatis membuat teks menu yang TIDAK aktif menjadi putih/terang di atas background gelap Anda.
                 'gray' => Color::Zinc,
