@@ -87,6 +87,76 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
         ]);
     }
 
+    /**
+     * Memulai sesi baseline Z-Score baru.
+     *
+     * Hanya mengubah waktu awal baseline perangkat.
+     * Data sensor lama tidak dihapus.
+     */
+    public function startBaselineAction(): Action
+    {
+        return Action::make('startBaseline')
+            ->label('Mulai Baseline Baru')
+            ->icon('heroicon-o-arrow-path')
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading('Mulai Baseline Z-Score Baru?')
+            ->modalDescription(
+                'Pastikan sensor pH dan suhu cairan sudah '
+                . 'dipasang dan diverifikasi. Sistem akan '
+                . 'mengumpulkan 30 pembacaan valid baru. '
+                . 'Seluruh riwayat sensor lama tetap tersimpan.'
+            )
+            ->modalSubmitActionLabel('Ya, Mulai Baseline')
+            ->action(function (): void {
+
+                if (!Auth::check()) {
+                    Notification::make()
+                        ->title('Sesi login tidak ditemukan')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                // Perangkat ESP32 EnzyLife saat ini.
+                $device = Device::find(1);
+
+                if (!$device) {
+                    Notification::make()
+                        ->title('Perangkat tidak ditemukan')
+                        ->body('Perangkat dengan ID 1 tidak tersedia.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                // Simpan waktu mulai baseline baru.
+                // Assignment langsung tidak bergantung
+                // pada pengaturan fillable.
+                $device->baseline_started_at = now();
+                $device->save();
+
+                Log::info('EnzyLife baseline Z-Score dimulai', [
+                    'device_id' => $device->id,
+                    'user_id' => Auth::id(),
+                    'baseline_started_at' =>
+                        $device->baseline_started_at,
+                ]);
+
+                Notification::make()
+                    ->title('Sesi baseline baru dimulai')
+                    ->body(
+                        'Sistem akan mengumpulkan 30 data '
+                        . 'referensi baru. Riwayat lama tetap tersimpan.'
+                    )
+                    ->success()
+                    ->send();
+            });
+    }
+
+
     // ==========================================
     // 2. FORM
     // ==========================================
@@ -559,4 +629,37 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     {
         return Setting::firstOrCreate([]);
     }
+    public function getBaselineInfo(): array
+        {
+            $device = \App\Models\Device::find(1);
+
+            if (!$device || !$device->baseline_started_at) {
+                return [
+                    'status' => 'Belum dimulai',
+                    'started_at' => null,
+                    'ph_count' => 0,
+                    'temp_count' => 0,
+                ];
+            }
+
+            $service = app(\App\Services\ZScoreService::class);
+
+            $phCount = count(
+                $service->getHistoricalData('ph_raw', $device->id, 30)
+            );
+
+            $tempCount = count(
+                $service->getHistoricalData('temp_raw', $device->id, 30)
+            );
+
+            return [
+                'status' => $phCount >= 30 && $tempCount >= 30
+                    ? 'Referensi mencukupi'
+                    : 'Mengumpulkan data',
+                'started_at' => $device->baseline_started_at
+                    ->format('d-m-Y H:i:s'),
+                'ph_count' => $phCount,
+                'temp_count' => $tempCount,
+            ];
+        }
 }

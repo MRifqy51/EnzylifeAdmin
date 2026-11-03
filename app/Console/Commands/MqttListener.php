@@ -7,38 +7,51 @@ use App\Models\Device;
 use App\Services\ZScoreService;
 use App\Services\SensorDataProcessor;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
-use Illuminate\Support\Facades\Event;
-
 
 class MqttListener extends Command
 {
     protected $signature = 'mqtt:listen';
 
-    protected $description = 'Listen MQTT data from HiveMQ and save to database';
+    protected $description =
+        'Listen MQTT data from HiveMQ and save to database';
 
+    /**
+     * Menjalankan MQTT Listener EnzyLife.
+     */
     public function handle()
-    {   
-        // Inisialisasi layanan deteksi anomali
-        
+    {
+        // ==========================================
+        // 1. INISIALISASI SERVICE
+        // ==========================================
+
         $zscoreService = new ZScoreService();
 
-        // Service baru untuk memproses data sensor
-        $sensorDataProcessor = new SensorDataProcessor($zscoreService);
+        $sensorDataProcessor = new SensorDataProcessor(
+            $zscoreService
+        );
 
+        // ==========================================
+        // 2. KONFIGURASI MQTT HIVEMQ
+        // ==========================================
 
-        // ===== 1. KONFIGURASI MQTT =====
         $server = '801f15e13a2145c89a3e83ce6fa60601.s1.eu.hivemq.cloud';
+
         $port = 8883;
+
         $clientId = 'laravel-enzylife-' . uniqid();
 
-        // Kredensial disimpan di .env
+        // Kredensial diambil dari konfigurasi Laravel.
         $username = config('services.hivemq.username');
         $password = config('services.hivemq.password');
 
+        // Topik ESP32 EnzyLife.
         $topic = 'enzylife/device01';
 
+        // Konfigurasi koneksi MQTT.
         $settings = (new ConnectionSettings)
             ->setUsername($username)
             ->setPassword($password)
@@ -48,146 +61,276 @@ class MqttListener extends Command
             ->setSocketTimeout(10)
             ->setReconnectAutomatically(true);
 
-        $mqtt = new MqttClient($server, $port, $clientId);
+        // Membuat MQTT Client.
+        $mqtt = new MqttClient(
+            $server,
+            $port,
+            $clientId
+        );
 
         $this->info('Connecting to HiveMQ...');
 
-        $mqtt->connect($settings, false);
+        // ==========================================
+        // 3. MEMBUKA KONEKSI MQTT
+        // ==========================================
 
-        $this->info('Connected. Listening topic: ' . $topic);
+        try {
+            $mqtt->connect($settings, false);
 
-        // ===== 2. MENERIMA DATA MQTT =====
-        
-        $mqtt->subscribe($topic, function (string $topic, string $message) use ($zscoreService, $sensorDataProcessor) {
+            $this->info(
+                'Connected. Listening topic: ' . $topic
+            );
 
-            $this->info('Message received: ' . $message);
+        } catch (\Throwable $e) {
 
-            $data = json_decode($message, true);
+            $this->error(
+                'MQTT connection failed: ' . $e->getMessage()
+            );
 
-            if (!is_array($data)) {
-                $this->error('Invalid JSON');
-                return;
-            }
+            Log::error(
+                'EnzyLife MQTT connection failed',
+                [
+                    'exception' => $e,
+                ]
+            );
 
-            // Validasi parameter wajib sebelum menyimpan data sensor
-            
-            $invalidField = $sensorDataProcessor->validateRequiredFields($data);
+            return self::FAILURE;
+        }
 
-            if ($invalidField !== null) {
-                $this->error(
-                    "Invalid or missing MQTT field: {$invalidField}"
-                );
+        // ==========================================
+        // 4. SUBSCRIBE PESAN MQTT
+        // ==========================================
 
-                return;
-            }
+        $mqtt->subscribe(
+            $topic,
+            function (
+                string $topic,
+                string $message
+            ) use ($sensorDataProcessor) {
 
+                try {
 
-            try {
+                    // ==================================
+                    // 5. DECODE DAN VALIDASI JSON
+                    // ==================================
 
-                // ===== 3. UPDATE STATUS SD CARD =====
-                $sdAvailable = $data['sd_available'] ?? false;
+                    $data = json_decode(
+                        $message,
+                        true,
+                        512,
+                        JSON_THROW_ON_ERROR
+                    );
 
-                $device = Device::find(1);
+                    // Payload harus berbentuk objek JSON.
+                    if (
+                        !is_array($data) ||
+                        array_is_list($data)
+                    ) {
+                        $this->warn(
+                            'Payload MQTT bukan objek JSON.'
+                        );
 
-                if ($device) {
-                    $currentStatus = $device->sd_status;
-
-                    if (!$sdAvailable && $currentStatus === 'CONNECTED') {
-                        $newStatus = 'EJECTED';
-                    } else {
-                        $newStatus = $sdAvailable
-                            ? 'CONNECTED'
-                            : 'DISCONNECTED';
+                        return;
                     }
 
-                    $device->update([
-                        'sd_status' => $newStatus
-                    ]);
+                    // Validasi field wajib.
+                    $invalidField = $sensorDataProcessor
+                        ->validateRequiredFields($data);
+
+                    if ($invalidField !== null) {
+
+                        $this->warn(
+                            "Invalid or missing MQTT field: {$invalidField}"
+                        );
+
+                        Log::warning(
+                            'EnzyLife invalid MQTT sensor field',
+                            [
+                                'topic' => $topic,
+                                'field' => $invalidField,
+                            ]
+                        );
+
+                        return;
+                    }
 
                     $this->info(
-                        'SD Card status updated to: ' . $newStatus
+                        'Valid MQTT sensor data received.'
                     );
-                }
 
-                // Ambil data mentah dari pesan MQTT
-                
-                // ===== 3. ANALISIS DATA SENSOR =====
+                    // ==================================
+                    // 6. UPDATE STATUS SD CARD
+                    // ==================================
 
-                $analysis = $sensorDataProcessor->analyzeReadings(
-                    $data,
-                    1
-                );
+                    $sdAvailable = $data['sd_available'] ?? false;
 
-                // Mengambil hasil pemrosesan sensor
-                $phRaw = $analysis['ph_raw'];
-                $tempRaw = $analysis['temp_raw'];
+                    // Saat ini EnzyLife menggunakan
+                    // perangkat dengan ID 1.
+                    $deviceId = 1;
 
-                $phStatus = $analysis['ph_status'];
-                $tempStatus = $analysis['temp_status'];
+                    $device = Device::find($deviceId);
 
-                $isAnomaly = $analysis['is_anomaly'];
-                $anomalyStatus = $analysis['anomaly_status'];
+                    if ($device) {
 
+                        $currentStatus = $device->sd_status;
 
+                        if (
+                            !$sdAvailable &&
+                            $currentStatus === 'CONNECTED'
+                        ) {
+                            $newStatus = 'EJECTED';
 
-                // ===== 4. SIMPAN DATA SENSOR =====
+                        } else {
 
-                $sensor = Sensor::create([
-                    'device_id' => 1,
+                            $newStatus = $sdAvailable
+                                ? 'CONNECTED'
+                                : 'DISCONNECTED';
+                        }
 
-                    // Data sensor lainnya
-                    'temperature' => $data['temperature'] ?? null,
-                    'humidity' => $data['humidity'] ?? null,
-                    'gas' => $data['gas'] ?? null,
+                        $device->update([
+                            'sd_status' => $newStatus,
+                        ]);
 
-                    // Data pH dan suhu untuk dashboard lama
-                    'ph' => $phRaw,
-                    'liquid_temperature' => $tempRaw,
+                        $this->info(
+                            'SD Card status updated to: '
+                            . $newStatus
+                        );
+                    }
 
-                    // Data mentah untuk Z-Score
-                    'ph_raw' => $phRaw,
-                    'temp_raw' => $tempRaw,
+                    // ==================================
+                    // 7. ANALISIS DATA SENSOR Z-SCORE
+                    // ==================================
 
-                    // Hasil perhitungan Z-Score                    
-                    'z_score_ph' => $analysis['z_score_ph'],
-                    'z_score_temp' => $analysis['z_score_temp'],
-                    
-                    // Status hasil analisis gabungan
-                    'is_anomaly' => $isAnomaly,
-                    'anomaly_status' => $anomalyStatus,
+                    $analysis = $sensorDataProcessor
+                        ->analyzeReadings(
+                            $data,
+                            $deviceId
+                        );
 
-                    // Status Z-Score per parameter
-                    'ph_status' => $phStatus,
-                    'temp_status' => $tempStatus,
+                    // Mengambil data hasil analisis.
+                    $phRaw = $analysis['ph_raw'];
+                    $tempRaw = $analysis['temp_raw'];
 
-                ]);
+                    $phStatus = $analysis['ph_status'];
+                    $tempStatus = $analysis['temp_status'];
 
+                    $isAnomaly = $analysis['is_anomaly'];
 
-                /*
-                 * Penghapusan otomatis 100 data dinonaktifkan.
-                 *
-                 * Data historis dipertahankan untuk:
-                 * - Monitoring fermentasi 90 hari
-                 * - Perhitungan Z-Score
-                 * - Pengujian dan analisis data sensor
-                 */
+                    $anomalyStatus =
+                        $analysis['anomaly_status'];
 
-                $this->info('Data saved to database.');
+                    // ==================================
+                    // 8. SIMPAN DATA SENSOR KE DATABASE
+                    // ==================================
 
-                // ===== 5. UPDATE DASHBOARD =====
-                Event::dispatch(
-                    'sensor-updated',
-                    $sensor->toArray()
-                );
+                    $sensor = Sensor::create([
 
-            
+                        'device_id' => $deviceId,
+
+                        // Sensor lingkungan.
+                        'temperature' =>
+                            $data['temperature'] ?? null,
+
+                        'humidity' =>
+                            $data['humidity'] ?? null,
+
+                        'gas' =>
+                            $data['gas'] ?? null,
+
+                        // Nilai pH dan suhu cairan
+                        // untuk dashboard EnzyLife.
+                        'ph' => $phRaw,
+
+                        'liquid_temperature' => $tempRaw,
+
+                        // Data mentah untuk Z-Score.
+                        'ph_raw' => $phRaw,
+
+                        'temp_raw' => $tempRaw,
+
+                        // Hasil perhitungan Z-Score.
+                        'z_score_ph' =>
+                            $analysis['z_score_ph'],
+
+                        'z_score_temp' =>
+                            $analysis['z_score_temp'],
+
+                        // Status anomali gabungan.
+                        'is_anomaly' => $isAnomaly,
+
+                        'anomaly_status' => $anomalyStatus,
+
+                        // Status per parameter.
+                        'ph_status' => $phStatus,
+
+                        'temp_status' => $tempStatus,
+                    ]);
+
+                    /*
+                     * Sensor::create() juga akan
+                     * memicu SensorObserver jika
+                     * observer sudah terdaftar.
+                     *
+                     * SensorObserver menangani:
+                     * - Alert Z-Score
+                     * - Alert threshold
+                     * - Cooldown WhatsApp
+                     * - Status alert aktif
+                     * - Penyelesaian alert
+                     */
+
+                    // Data historis tidak dihapus
+                    // agar tetap tersedia untuk
+                    // monitoring dan perhitungan Z-Score.
+
+                    $this->info(
+                        'Data saved to database. Sensor ID: '
+                        . $sensor->id
+                    );
+
+                    // ==================================
+                    // 9. PEMBARUAN DATA DASHBOARD
+                    // ==================================
+
+                    Event::dispatch(
+                        'sensor-updated',
+                        $sensor->toArray()
+                    );
+
+                    $this->info(
+                        'Sensor update event dispatched.'
+                    );
+
+                    // ==================================
+                    // 10. PENANGANAN JSON TIDAK VALID
+                    // ==================================
+
+                } catch (\JsonException $e) {
+
+                    $this->warn(
+                        'Payload MQTT memiliki format JSON tidak valid.'
+                    );
+
+                    Log::warning(
+                        'EnzyLife received invalid MQTT JSON',
+                        [
+                            'topic' => $topic,
+                            'error' => $e->getMessage(),
+                        ]
+                    );
+
+                    // ==================================
+                    // 11. PENANGANAN ERROR PEMROSESAN
+                    // ==================================
+
                 } catch (\Throwable $e) {
 
                     $this->error(
-                        'MQTT message processing error: ' . $e->getMessage()
+                        'MQTT message processing error: '
+                        . $e->getMessage()
                     );
 
-                    \Illuminate\Support\Facades\Log::error(
+                    Log::error(
                         'EnzyLife MQTT processing failed',
                         [
                             'topic' => $topic,
@@ -196,10 +339,39 @@ class MqttListener extends Command
                     );
                 }
 
+            },
+            0
+        );
 
-        }, 0);
+        // ==========================================
+        // 12. MENJAGA MQTT LISTENER TETAP AKTIF
+        // ==========================================
 
-        // ===== 6. MENJAGA MQTT LISTENER AKTIF =====
-        $mqtt->loop(true, true);
+        $this->info(
+            'EnzyLife MQTT Listener is running...'
+        );
+
+        try {
+
+            $mqtt->loop(true, true);
+
+        } catch (\Throwable $e) {
+
+            $this->error(
+                'MQTT listener stopped: '
+                . $e->getMessage()
+            );
+
+            Log::error(
+                'EnzyLife MQTT listener stopped',
+                [
+                    'exception' => $e,
+                ]
+            );
+
+            return self::FAILURE;
+        }
+
+        return self::SUCCESS;
     }
 }

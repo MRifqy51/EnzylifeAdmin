@@ -138,3 +138,54 @@ test('validasi parameter wajib pada pesan MQTT', function () {
         ->toBe('liquid_temperature');
 });
 
+/**
+ * Memastikan data sensor nonnumerik tidak
+ * dianggap sebagai data yang belum dianalisis.
+ */
+test('nilai sensor nonnumerik menghasilkan invalid reading', function () {
+
+    $service = new \App\Services\SensorDataProcessor(
+        new \App\Services\ZScoreService()
+    );
+
+    $device = \App\Models\Device::factory()->create();
+
+    $result = $service->analyzeReadings([
+        'ph' => 'ERROR',
+        'liquid_temperature' => 27.5,
+        'temperature' => 28.0,
+    ], $device->id);
+
+    expect($result['ph_status'])
+        ->toBe('invalid_reading');
+
+    expect($result['anomaly_status'])
+        ->toBe('invalid_reading');
+
+    expect($result['z_score_ph'])
+        ->toBeNull();
+});
+
+/**
+ * Memastikan payload MQTT dengan nilai
+ * numerik ekstrem ditolak sebelum disimpan.
+ */
+test('payload mqtt menolak nilai numerik tidak terhingga', function () {
+
+    $service = new \App\Services\SensorDataProcessor(
+        new \App\Services\ZScoreService()
+    );
+
+    $data = [
+        'ph' => '1e9999',
+        'liquid_temperature' => 27.5,
+        'temperature' => 28.0,
+    ];
+
+    // Nilai numerik yang berubah menjadi INF
+    // tidak boleh lolos validasi MQTT.
+    expect(
+        $service->validateRequiredFields($data)
+    )->toBe('ph');
+});
+

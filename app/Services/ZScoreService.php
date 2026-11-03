@@ -66,35 +66,97 @@ class ZScoreService
         int $deviceId,
         int $windowSize = 30
     ): array {
-        $allowedParameters = [
-            'ph_raw',
-            'temp_raw',
+        $parameterConfig = [
+            'ph_raw' => [
+                'status' => 'ph_status',
+                'min' => 0,
+                'max' => 14,
+            ],
+            'temp_raw' => [
+                'status' => 'temp_status',
+                'min' => -55,
+                'max' => 125,
+            ],
         ];
 
-        if (!in_array($parameter, $allowedParameters, true)) {
+        // Validasi nama parameter.
+        if (!array_key_exists($parameter, $parameterConfig)) {
             throw new \InvalidArgumentException(
                 'Parameter sensor tidak valid.'
             );
         }
 
+        // Minimal dua sampel untuk standar deviasi.
         if ($windowSize < 2) {
             throw new \InvalidArgumentException(
                 'Window size minimal 2 data.'
             );
         }
 
-        return Sensor::query()
+        $config = $parameterConfig[$parameter];
+        $statusColumn = $config['status'];
+
+        // Status yang masih dapat digunakan sebagai
+        // referensi, selama nilai fisiknya valid.
+        $allowedStatuses = [
+            'normal',
+            'insufficient_data',
+            'undefined_z_score',
+            'not_analyzed',
+        ];
+
+        $history = Sensor::query()
             ->where('device_id', $deviceId)
-            ->where('is_anomaly', false)
+
+            // Ambil pembacaan yang tersedia dan berada
+            // dalam rentang pengukuran sensor.
             ->whereNotNull($parameter)
+            ->whereBetween($parameter, [
+                $config['min'],
+                $config['max'],
+            ])
+
+            // Periksa status untuk parameter terkait.
+            ->where(function ($query) use (
+                $statusColumn,
+                $allowedStatuses
+            ) {
+                $query->whereIn(
+                    $statusColumn,
+                    $allowedStatuses
+                )
+
+                // Kompatibilitas data historis lama
+                // yang belum memiliki status parameter.
+                ->orWhere(function ($legacyQuery) use (
+                    $statusColumn
+                ) {
+                    $legacyQuery
+                        ->whereNull($statusColumn)
+                        ->where('is_anomaly', false);
+                });
+            })
+
+            // Ambil 30 pembacaan yang lolos filter.
             ->orderByDesc('id')
             ->limit($windowSize)
             ->pluck($parameter)
+
+            // Susun kembali dari lama ke terbaru.
             ->reverse()
-            ->map(fn($value) => (float) $value)
-            ->filter(fn($value) => $this->isValidReading($parameter, $value))
+
+            // Perlindungan tambahan pada sisi PHP.
+            ->map(fn ($value) => (float) $value)
+            ->filter(
+                fn ($value) => $this->isValidReading(
+                    $parameter,
+                    $value
+                )
+            )
             ->values()
             ->all();
+
+        return $history;
     }
 
     // Menganalisis pembacaan sensor terbaru

@@ -154,31 +154,42 @@ test('anomali berulang dalam lima menit ditahan cooldown', function () {
  * Setelah cooldown 5 menit berakhir,
  * anomali baru boleh menghasilkan alert.
  */
-test('anomali setelah cooldown menghasilkan alert baru', function () {
+test('anomali setelah cooldown mengirim ulang whatsapp tanpa alert baru', function () {
 
     $device = Device::factory()->create();
 
-    // Pembacaan pertama
-    Sensor::create(
+    // Pembacaan pertama menghasilkan alert.
+    $firstSensor = Sensor::create(
         cooldownTestSensorData($device->id)
     );
 
-    expect(Alert::count())->toBe(1);
+    $alert = Alert::first();
+
+    expect($alert)->not->toBeNull();
+    expect($alert->type)->toBe('zscore_ph');
+    expect($alert->sensor_id)->toBe($firstSensor->id);
+    expect($alert->resolved_at)->toBeNull();
 
     Http::assertSentCount(1);
 
     // Maju 6 menit agar melewati cooldown.
     $this->travel(6)->minutes();
 
-    // Pembacaan kedua setelah cooldown
-    Sensor::create(
+    // Pembacaan kedua masih anomali.
+    $secondSensor = Sensor::create(
         cooldownTestSensorData($device->id)
     );
 
-    // Alert baru diperbolehkan
-    expect(Alert::count())->toBe(2);
+    // Tidak membuat baris alert tambahan.
+    expect(Alert::count())->toBe(1);
 
-    // Permintaan WhatsApp kedua diperbolehkan
+    // Alert yang sama tetap aktif.
+    $alert->refresh();
+
+    expect($alert->sensor_id)->toBe($secondSensor->id);
+    expect($alert->resolved_at)->toBeNull();
+
+    // WhatsApp dikirim ulang setelah cooldown.
     Http::assertSentCount(2);
 });
 
@@ -255,4 +266,113 @@ test('notifikasi memakai nomor whatsapp dari database', function () {
     });
 
     Http::assertSentCount(1);
+});
+
+/**
+ * TEST 6
+ *
+ * Alert anomali harus otomatis selesai
+ * ketika data sensor kembali normal.
+ */
+test('alert anomali otomatis selesai ketika sensor kembali normal', function () {
+
+    $device = Device::factory()->create();
+
+    // Membuat pembacaan anomali pertama.
+    Sensor::create(
+        cooldownTestSensorData($device->id)
+    );
+
+    $alert = Alert::first();
+
+    expect($alert)->not->toBeNull();
+    expect($alert->type)->toBe('zscore_ph');
+    expect($alert->resolved_at)->toBeNull();
+
+    Http::assertSentCount(1);
+
+    // Simulasi kondisi sensor kembali normal.
+    $normalData = cooldownTestSensorData($device->id);
+
+    $normalData['z_score_ph'] = 0.5;
+    $normalData['is_anomaly'] = false;
+    $normalData['anomaly_status'] = 'normal';
+    $normalData['ph_status'] = 'normal';
+
+    Sensor::create($normalData);
+
+    // Alert sebelumnya harus ditandai selesai.
+    $alert->refresh();
+
+    expect($alert->resolved_at)->not->toBeNull();
+
+    // Riwayat tetap tersimpan.
+    expect(Alert::count())->toBe(1);
+
+    // Tidak mengirim WhatsApp tambahan.
+    Http::assertSentCount(1);
+});
+
+/**
+ * TEST 7
+ *
+ * Memastikan anomali baru setelah kondisi normal
+ * menghasilkan alert baru, tanpa menghapus riwayat.
+ */
+test('anomali baru setelah kondisi pulih menghasilkan alert baru', function () {
+
+    $device = Device::factory()->create();
+
+    // 1. Sensor mengalami anomali.
+    Sensor::create(
+        cooldownTestSensorData($device->id)
+    );
+
+    expect(Alert::count())->toBe(1);
+
+    $firstAlert = Alert::first();
+
+    expect($firstAlert->type)->toBe('zscore_ph');
+    expect($firstAlert->resolved_at)->toBeNull();
+
+    Http::assertSentCount(1);
+
+    // 2. Sensor kembali normal.
+    $normalData = cooldownTestSensorData($device->id);
+
+    $normalData['ph_status'] = 'normal';
+    $normalData['z_score_ph'] = 0.5;
+    $normalData['is_anomaly'] = false;
+    $normalData['anomaly_status'] = 'normal';
+
+    Sensor::create($normalData);
+
+    $firstAlert->refresh();
+
+    // Alert pertama selesai.
+    expect($firstAlert->resolved_at)->not->toBeNull();
+
+    // Riwayat tetap tersimpan.
+    expect(Alert::count())->toBe(1);
+
+    // 3. Sensor mengalami anomali kembali.
+    Sensor::create(
+        cooldownTestSensorData($device->id)
+    );
+
+    // Harus ada dua kejadian berbeda.
+    expect(Alert::count())->toBe(2);
+
+    // Satu alert sudah selesai.
+    expect(
+        Alert::whereNotNull('resolved_at')->count()
+    )->toBe(1);
+
+    // Satu alert baru masih aktif.
+    expect(
+        Alert::whereNull('resolved_at')->count()
+    )->toBe(1);
+
+    // Kedua kejadian menghasilkan notifikasi.
+    Http::assertSentCount(2);
 });

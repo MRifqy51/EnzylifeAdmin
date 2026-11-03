@@ -7,6 +7,8 @@ use App\Models\Setting;
 use App\Models\Alert;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use App\Models\Device;
+use App\Services\ZScoreService;
 
 class Dashboard extends Page
 {
@@ -17,6 +19,7 @@ class Dashboard extends Page
     public array $alerts = [];
     public array $currentStats = [];
     public array $recentLogs = []; // Tambahan untuk menampung data tabel secara reaktif
+    public int $activeAlertCount = 0;
 
     protected string $view = 'filament.pages.dashboard';
 
@@ -30,37 +33,136 @@ class Dashboard extends Page
      */
     protected function updateDataState(): void
     {
+
         $latest = Sensor::latest()->first();
 
+        $device = $latest
+            ? Device::find($latest->device_id)
+            : null;
+
+        $setting = Setting::first();
+
+        $interval = max(
+            5,
+            (int) ($setting?->collection_interval ?? 10)
+        );
+
+        // Batas toleransi data terbaru.
+        $staleAfterSeconds = max(60, $interval * 3);
+
+        $isStale = $latest !== null
+            && (
+                $latest->created_at === null
+                || $latest->created_at->isFuture()
+                || $latest->created_at->lt(
+                    now()->subSeconds($staleAfterSeconds)
+                )
+            );
+
+        // Evaluasi kesiapan baseline.
+        $baselineStarted = $device?->baseline_started_at !== null;
+        $baselineReady = false;
+
+        if ($baselineStarted && $latest) {
+            $zscoreService = app(ZScoreService::class);
+
+            $phCount = count(
+                $zscoreService->getHistoricalData(
+                    'ph_raw',
+                    $device->id,
+                    30
+                )
+            );
+
+            $tempCount = count(
+                $zscoreService->getHistoricalData(
+                    'temp_raw',
+                    $device->id,
+                    30
+                )
+            );
+
+            $baselineReady = $phCount >= 30 && $tempCount >= 30;
+        }
+
+        // Memeriksa alert aktif untuk perangkat yang sedang ditampilkan.
+        $activeAlerts = Alert::query()
+            ->whereNotNull('type')
+            ->whereNull('resolved_at')
+            ->when(
+                $latest,
+                fn ($query) => $query->whereHas(
+                    'sensor',
+                    fn ($sensorQuery) => $sensorQuery
+                        ->where('device_id', $latest->device_id)
+                )
+            );
+
+        $hasDanger = (clone $activeAlerts)
+            ->where('level', 'danger')
+            ->exists();
+
+        $hasWarning = (clone $activeAlerts)
+            ->where('level', 'warning')
+            ->exists();
+
+        $status = match (true) {
+            $latest === null => 'no_data',
+            $isStale => 'stale',
+            !$baselineStarted => 'unverified',
+            !$baselineReady => 'collecting',
+            $hasDanger => 'danger',
+            $hasWarning => 'warning',
+            default => 'no_active_alert',
+        };
+
         $this->currentStats = [
-            'ph'                 => $latest?->ph ?? 0,
-            'temperature'        => $latest?->temperature ?? 0,
-            'liquid_temperature' => $latest?->liquid_temperature ?? 0,
-            'gas'                => $latest?->gas ?? 0,
-            'humidity'           => $latest?->humidity ?? 0,
-            'status' => match (true) {
-                Alert::whereNull('resolved_at')
-                    ->where('level', 'danger')
-                    ->exists() => 'danger',
-
-                Alert::whereNull('resolved_at')
-                    ->where('level', 'warning')
-                    ->exists() => 'warning',
-
-                default => 'optimal',
-            },
+            'ph' => $latest?->ph,
+            'temperature' => $latest?->temperature,
+            'liquid_temperature' => $latest?->liquid_temperature,
+            'gas' => $latest?->gas,
+            'humidity' => $latest?->humidity,
+            'status' => $status,
+            'last_reading_at' => $latest?->created_at
+                ? $latest->created_at->format('d-m-Y H:i:s')
+                : null,
         ];
 
+
         // 🔥 Hanya tampilkan alert yang belum resolved
-        $this->alerts = Alert::latest()
+        // Menghitung jumlah alert yang masih aktif.
+        $this->activeAlertCount = Alert::query()
+            ->whereNotNull('type')
+            ->whereNull('resolved_at')
+            ->count();
+
+        // Mengambil lima alert terbaru,
+        // baik yang aktif maupun yang selesai.
+        $this->alerts = Alert::query()
+            ->latest()
             ->take(5)
             ->get()
             ->map(function ($alert) {
                 return [
-                    'id'        => $alert->id,
-                    'message'   => $alert->message,
-                    'level'     => $alert->level,
-                    'time'      => $alert->created_at->format('H:i'),
+                    'id' => $alert->id,
+                    'message' => $alert->message,
+                    'level' => $alert->level,
+                    'type' => $alert->type,
+
+                    'status' => match (true) {
+                        $alert->resolved_at !== null => 'Selesai',
+                        $alert->type === null => 'Riwayat Lama',
+                        default => 'Aktif',
+                    },
+
+                    'time' => $alert->created_at->format('H:i'),
+
+                    'resolved_at' => $alert->resolved_at
+                        ? \Illuminate\Support\Carbon::parse(
+                            $alert->resolved_at
+                        )->format('d-m-Y H:i')
+                        : null,
+
                     'sensor_id' => $alert->sensor_id,
                 ];
             })

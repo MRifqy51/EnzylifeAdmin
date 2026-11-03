@@ -33,42 +33,197 @@
 
         </div>
 
+        {{-- STATUS MONITORING --}}
+        @php
+            $monitorStatus = $currentStats['status'] ?? 'no_data';
+
+            $statusInfo = match ($monitorStatus) {
+                'no_data' => [
+                    'label' => 'Belum Ada Data',
+                    'color' => 'bg-gray-100 text-gray-800',
+                    'message' => 'Belum ada pembacaan sensor yang tersimpan.',
+                ],
+                'stale' => [
+                    'label' => 'Data Tidak Terbaru',
+                    'color' => 'bg-orange-100 text-orange-800',
+                    'message' => 'Periksa koneksi ESP32, MQTT, dan proses penerimaan data.',
+                ],
+                'unverified' => [
+                    'label' => 'Belum Terverifikasi',
+                    'color' => 'bg-gray-100 text-gray-800',
+                    'message' => 'Baseline pengukuran cairan belum dimulai.',
+                ],
+                'collecting' => [
+                    'label' => 'Mengumpulkan Baseline',
+                    'color' => 'bg-blue-100 text-blue-800',
+                    'message' => 'Menunggu 30 referensi valid untuk pH dan suhu cairan.',
+                ],
+                'danger' => [
+                    'label' => 'Bahaya',
+                    'color' => 'bg-red-100 text-red-800',
+                    'message' => 'Terdapat alert bahaya yang masih aktif.',
+                ],
+                'warning' => [
+                    'label' => 'Peringatan',
+                    'color' => 'bg-yellow-100 text-yellow-800',
+                    'message' => 'Terdapat alert peringatan yang masih aktif.',
+                ],
+                default => [
+                    'label' => 'Tidak Ada Peringatan Aktif',
+                    'color' => 'bg-green-100 text-green-800',
+                    'message' => 'Tidak ada alert aktif pada perangkat yang dipantau. '
+                        . 'Hal ini bukan bukti bahwa fermentasi sudah optimal.',
+                ],
+            };
+        @endphp
+
+        <div class="mb-6 rounded-xl bg-white p-4 shadow dark:bg-gray-800">
+
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-semibold dark:text-white">
+                        Status Monitoring EnzyLife
+                    </h2>
+
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                        {{ $statusInfo['message'] }}
+                    </p>
+                </div>
+
+                <span class="rounded-full px-3 py-2 text-sm font-semibold
+                            {{ $statusInfo['color'] }}">
+                    {{ $statusInfo['label'] }}
+                </span>
+            </div>
+
+            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Pembacaan terakhir:
+                {{ $currentStats['last_reading_at'] ?? 'Belum tersedia' }}
+            </p>
+        </div>
+
+
         {{-- ===================== ALERT NOTIFICATION ===================== --}}
         <div class="mb-6">
             <div class="bg-white rounded-xl shadow p-4 dark:bg-gray-800">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold dark:text-white">Notifikasi Alert</h2>
 
-                    <span class="px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                        {{ count($alerts) }} Riwayat Alert Terbaru
-                    </span>
+                {{-- Judul dan ringkasan alert --}}
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2 class="text-lg font-semibold dark:text-white">
+                        Notifikasi Alert
+                    </h2>
 
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold
+                            {{ $activeAlertCount > 0
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' }}">
+                            {{ $activeAlertCount }} Alert Aktif
+                        </span>
+
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold
+                            bg-blue-100 text-blue-700
+                            dark:bg-blue-900/30 dark:text-blue-400">
+                            {{ count($alerts) }} Riwayat Terbaru
+                        </span>
+                    </div>
                 </div>
 
+                {{-- Daftar lima alert terbaru --}}
                 @if(count($alerts) > 0)
                     <div class="space-y-3">
-                        @foreach($alerts as $alert)
-                            <div class="p-3 rounded-lg border
-                                {{ $alert['level'] === 'danger'
-                                    ? 'bg-red-50 border-red-300 text-red-800 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
-                                    : 'bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-950/20 dark:border-yellow-800 dark:text-yellow-400' }}">
 
-                                <div class="flex items-center justify-between">
-                                    <p class="font-semibold flex items-center gap-1">
-                                        {{ $alert['level'] === 'danger' ? '🚨 Bahaya' : '⚠️ Peringatan' }}
-                                    </p>
-                                    <span class="text-xs opacity-75">{{ $alert['time'] }} WIB</span>
+                        @foreach($alerts as $alert)
+                            @php
+                                $status = $alert['status'] ?? 'Riwayat Lama';
+                                $isActive = $status === 'Aktif';
+                                $isDanger = $alert['level'] === 'danger';
+                            @endphp
+
+                            <div class="p-4 rounded-lg border
+                                {{ !$isActive
+                                    ? 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-700/30 dark:border-gray-600 dark:text-gray-300'
+                                    : ($isDanger
+                                        ? 'bg-red-50 border-red-300 text-red-800 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400'
+                                        : 'bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-950/20 dark:border-yellow-800 dark:text-yellow-400') }}">
+
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="font-semibold">
+                                            {{ $isDanger ? '🚨 Bahaya' : '⚠️ Peringatan' }}
+                                        </span>
+
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                            {{ match ($status) {
+                                                'Aktif' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                                                'Selesai' => 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                                                default => 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200',
+                                            } }}">
+                                            {{ $status }}
+                                        </span>
+                                    </div>
+
+                                    <span class="text-xs opacity-75">
+                                        {{ $alert['time'] }}
+                                    </span>
                                 </div>
 
-                                <p class="text-sm mt-1">{{ $alert['message'] }}</p>
+                                <p class="text-sm mt-2">
+                                    @switch($alert['type'])
+
+                                        @case('zscore_ph')
+                                            Terdeteksi perubahan nilai pH yang tidak biasa.
+                                            Silakan periksa kondisi sensor dan cairan fermentasi.
+                                            @break
+
+                                        @case('zscore_liquid_temperature')
+                                            Terdeteksi perubahan suhu cairan yang tidak biasa.
+                                            Silakan periksa kondisi sensor dan cairan fermentasi.
+                                            @break
+
+                                        @case('threshold_ph')
+                                            Nilai pH berada di luar batas yang telah ditentukan.
+                                            Silakan periksa kondisi cairan fermentasi.
+                                            @break
+
+                                        @case('threshold_liquid_temperature')
+                                            Suhu cairan berada di luar batas yang telah ditentukan.
+                                            Silakan periksa kondisi fermentasi.
+                                            @break
+
+                                        @default
+                                            {{ $alert['message'] }}
+
+                                    @endswitch
+                                </p>
+
+
+                                @if(!empty($alert['resolved_at']))
+                                    <p class="text-xs mt-2 opacity-75">
+                                        Selesai pada:
+                                        {{ $alert['resolved_at'] }}
+                                    </p>
+                                @endif
+
                             </div>
                         @endforeach
+
                     </div>
                 @else
-                    <div class="p-3 rounded-lg bg-green-50 border border-green-300 text-green-700 dark:bg-green-950/20 dark:border-green-800 dark:text-green-400">
-                        ✅ Semua parameter fermentasi Eco Enzyme dalam kondisi optimal.
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200
+                        text-gray-600 dark:bg-gray-700/30 dark:border-gray-600
+                        dark:text-gray-300">
+                        Belum ada riwayat peringatan yang tercatat.
                     </div>
                 @endif
+
+                {{-- Status saat tidak ada peringatan aktif --}}
+                @if($activeAlertCount === 0)
+                    <p class="text-sm text-green-600 dark:text-green-400 mt-4">
+                        ✅ Tidak ada alert aktif yang tercatat saat ini.
+                    </p>
+                @endif
+
             </div>
         </div>
 
@@ -87,6 +242,7 @@
                 style="height: 500px;">
                 <canvas id="sensorChart"></canvas>
             </div>
+            </div> {{-- Penutup container grafik wire:ignore --}}
 
 
 
@@ -121,7 +277,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="p-4 text-center text-gray-500 dark:text-gray-400">
+                                <td colspan="6" class="p-4 text-center text-gray-500 dark:text-gray-400">
                                     Belum ada data sensor masuk.
                                 </td>
                             </tr>
