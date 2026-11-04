@@ -9,13 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
-/**
- * Konfigurasi WhatsApp untuk pengujian.
- * Tidak mengirim pesan sungguhan.
- */
 beforeEach(function () {
-
-    // Pastikan memakai database khusus pengujian.
     expect(config('database.default'))->toBe('sqlite');
 
     config()->set('services.fonnte.token', 'test-token');
@@ -33,8 +27,7 @@ beforeEach(function () {
         ], 200),
     ]);
 
-    // Threshold ini hanya untuk simulasi.
-    // Bukan batas biologis yang telah divalidasi.
+    // Threshold simulasi, bukan batas biologis final.
     $setting = Setting::firstOrNew([]);
 
     $setting->ph_min = 3.0;
@@ -53,23 +46,22 @@ beforeEach(function () {
     $setting->gas_max = 10000;
 
     $setting->collection_interval = 5;
-
-    // Nomor simulasi dari database.
     $setting->whatsapp_number = '6281234567890';
 
     $setting->save();
 });
 
 /**
- * Membuat pembacaan sensor dengan anomali Z-Score pH.
+ * Data yang lolos pemeriksaan Z-Score,
+ * tetapi melebihi threshold maksimum pH.
  */
 function cooldownTestSensorData(int $deviceId): array
 {
     return [
         'device_id' => $deviceId,
 
-        'ph' => 3.5,
-        'ph_raw' => 3.5,
+        'ph' => 4.5,
+        'ph_raw' => 4.5,
 
         'temperature' => 28,
         'liquid_temperature' => 27,
@@ -78,24 +70,35 @@ function cooldownTestSensorData(int $deviceId): array
         'humidity' => 70,
         'gas' => 300,
 
-        'z_score_ph' => 3.5,
+        'z_score_ph' => 0.5,
         'z_score_temp' => 0.5,
 
-        'is_anomaly' => true,
-        'anomaly_status' => 'anomaly',
+        'is_anomaly' => false,
+        'anomaly_status' => 'normal',
 
-        'ph_status' => 'anomaly',
+        'ph_status' => 'normal',
         'temp_status' => 'normal',
     ];
 }
 
 /**
- * TEST 1
- *
- * Anomali pertama harus membuat alert
- * dan satu permintaan pengiriman WhatsApp.
+ * Data pH yang kembali ke dalam threshold.
  */
-test('anomali pertama menghasilkan satu alert', function () {
+function cooldownNormalSensorData(int $deviceId): array
+{
+    $data = cooldownTestSensorData($deviceId);
+
+    $data['ph'] = 3.5;
+    $data['ph_raw'] = 3.5;
+
+    return $data;
+}
+
+/**
+ * TEST 1
+ * Threshold pertama menghasilkan alert dan WhatsApp.
+ */
+test('threshold pertama menghasilkan satu alert', function () {
 
     $device = Device::factory()->create();
 
@@ -103,62 +106,52 @@ test('anomali pertama menghasilkan satu alert', function () {
         cooldownTestSensorData($device->id)
     );
 
-    expect(
-        Alert::where(
-            'message',
-            'LIKE',
-            'Anomali Z-Score pH:%'
-        )->count()
-    )->toBe(1);
+    expect(Alert::count())->toBe(1);
+
+    $alert = Alert::first();
+
+    expect($alert->type)->toBe('threshold_ph');
+    expect($alert->level)->toBe('danger');
+    expect($alert->resolved_at)->toBeNull();
 
     Http::assertSentCount(1);
 });
 
 /**
  * TEST 2
- *
- * Anomali berulang dalam waktu kurang
- * dari 5 menit tidak membuat alert baru.
+ * Pelanggaran threshold berulang dalam 5 menit
+ * tidak membuat alert atau WhatsApp tambahan.
  */
-test('anomali berulang dalam lima menit ditahan cooldown', function () {
+test('threshold berulang dalam lima menit ditahan cooldown', function () {
 
     $device = Device::factory()->create();
 
-    // Pembacaan pertama
     Sensor::create(
         cooldownTestSensorData($device->id)
     );
 
     expect(Alert::count())->toBe(1);
-
     Http::assertSentCount(1);
 
-    // Simulasi waktu maju 4 menit.
     $this->travel(4)->minutes();
 
-    // Pembacaan kedua
     Sensor::create(
         cooldownTestSensorData($device->id)
     );
 
-    // Alert tidak boleh bertambah
     expect(Alert::count())->toBe(1);
-
-    // WhatsApp tidak boleh dikirim lagi
     Http::assertSentCount(1);
 });
 
 /**
  * TEST 3
- *
- * Setelah cooldown 5 menit berakhir,
- * anomali baru boleh menghasilkan alert.
+ * Setelah cooldown, kondisi abnormal yang masih
+ * berlangsung mengirim ulang WhatsApp.
  */
-test('anomali setelah cooldown mengirim ulang whatsapp tanpa alert baru', function () {
+test('threshold setelah cooldown mengirim ulang whatsapp tanpa alert baru', function () {
 
     $device = Device::factory()->create();
 
-    // Pembacaan pertama menghasilkan alert.
     $firstSensor = Sensor::create(
         cooldownTestSensorData($device->id)
     );
@@ -166,81 +159,67 @@ test('anomali setelah cooldown mengirim ulang whatsapp tanpa alert baru', functi
     $alert = Alert::first();
 
     expect($alert)->not->toBeNull();
-    expect($alert->type)->toBe('zscore_ph');
+    expect($alert->type)->toBe('threshold_ph');
     expect($alert->sensor_id)->toBe($firstSensor->id);
     expect($alert->resolved_at)->toBeNull();
 
     Http::assertSentCount(1);
 
-    // Maju 6 menit agar melewati cooldown.
     $this->travel(6)->minutes();
 
-    // Pembacaan kedua masih anomali.
     $secondSensor = Sensor::create(
         cooldownTestSensorData($device->id)
     );
 
-    // Tidak membuat baris alert tambahan.
     expect(Alert::count())->toBe(1);
 
-    // Alert yang sama tetap aktif.
     $alert->refresh();
 
     expect($alert->sensor_id)->toBe($secondSensor->id);
     expect($alert->resolved_at)->toBeNull();
 
-    // WhatsApp dikirim ulang setelah cooldown.
     Http::assertSentCount(2);
 });
 
 /**
  * TEST 4
- *
- * Cooldown satu perangkat tidak boleh
- * menghalangi perangkat lain.
+ * Cooldown harus terpisah untuk setiap perangkat.
  */
-test('cooldown dipisahkan berdasarkan perangkat', function () {
+test('cooldown threshold dipisahkan berdasarkan perangkat', function () {
 
     $deviceA = Device::factory()->create();
     $deviceB = Device::factory()->create();
 
-    // Anomali pada perangkat A
     Sensor::create(
         cooldownTestSensorData($deviceA->id)
     );
 
     expect(Alert::count())->toBe(1);
 
-    // Anomali pada perangkat B
     Sensor::create(
         cooldownTestSensorData($deviceB->id)
     );
 
-    // Kedua perangkat punya alert masing-masing
     expect(Alert::count())->toBe(2);
-
     Http::assertSentCount(2);
 
-    // Anomali ulang pada perangkat A
+    // Pengulangan pada perangkat A
+    // masih berada dalam cooldown.
     Sensor::create(
         cooldownTestSensorData($deviceA->id)
     );
 
-    // Masih dalam cooldown perangkat A
     expect(Alert::count())->toBe(2);
-
     Http::assertSentCount(2);
 });
 
 /**
  * TEST 5
- *
- * Nomor WhatsApp dari database harus
- * diprioritaskan daripada nomor .env.
+ * Nomor WhatsApp database lebih diprioritaskan
+ * daripada nomor fallback konfigurasi.
  */
-test('notifikasi memakai nomor whatsapp dari database', function () {
+test('notifikasi threshold memakai nomor whatsapp dari database', function () {
 
-    // Nomor fallback berbeda dari nomor database
     config()->set(
         'services.fonnte.admin_phone',
         '628111111111'
@@ -253,7 +232,6 @@ test('notifikasi memakai nomor whatsapp dari database', function () {
 
     $device = Device::factory()->create();
 
-    // Memicu anomali Z-Score pH
     Sensor::create(
         cooldownTestSensorData($device->id)
     );
@@ -270,15 +248,13 @@ test('notifikasi memakai nomor whatsapp dari database', function () {
 
 /**
  * TEST 6
- *
- * Alert anomali harus otomatis selesai
- * ketika data sensor kembali normal.
+ * Alert threshold selesai ketika nilai pH
+ * kembali ke rentang yang ditentukan.
  */
-test('alert anomali otomatis selesai ketika sensor kembali normal', function () {
+test('alert threshold selesai ketika nilai kembali normal', function () {
 
     $device = Device::factory()->create();
 
-    // Membuat pembacaan anomali pertama.
     Sensor::create(
         cooldownTestSensorData($device->id)
     );
@@ -286,44 +262,33 @@ test('alert anomali otomatis selesai ketika sensor kembali normal', function () 
     $alert = Alert::first();
 
     expect($alert)->not->toBeNull();
-    expect($alert->type)->toBe('zscore_ph');
+    expect($alert->type)->toBe('threshold_ph');
     expect($alert->resolved_at)->toBeNull();
 
     Http::assertSentCount(1);
 
-    // Simulasi kondisi sensor kembali normal.
-    $normalData = cooldownTestSensorData($device->id);
+    Sensor::create(
+        cooldownNormalSensorData($device->id)
+    );
 
-    $normalData['z_score_ph'] = 0.5;
-    $normalData['is_anomaly'] = false;
-    $normalData['anomaly_status'] = 'normal';
-    $normalData['ph_status'] = 'normal';
-
-    Sensor::create($normalData);
-
-    // Alert sebelumnya harus ditandai selesai.
     $alert->refresh();
 
     expect($alert->resolved_at)->not->toBeNull();
-
-    // Riwayat tetap tersimpan.
     expect(Alert::count())->toBe(1);
 
-    // Tidak mengirim WhatsApp tambahan.
     Http::assertSentCount(1);
 });
 
 /**
  * TEST 7
- *
- * Memastikan anomali baru setelah kondisi normal
- * menghasilkan alert baru, tanpa menghapus riwayat.
+ * Pelanggaran threshold baru setelah pemulihan
+ * membuat alert baru tanpa menghapus riwayat.
  */
-test('anomali baru setelah kondisi pulih menghasilkan alert baru', function () {
+test('threshold baru setelah pulih menghasilkan alert baru', function () {
 
     $device = Device::factory()->create();
 
-    // 1. Sensor mengalami anomali.
+    // Kondisi pertama melebihi threshold.
     Sensor::create(
         cooldownTestSensorData($device->id)
     );
@@ -332,47 +297,65 @@ test('anomali baru setelah kondisi pulih menghasilkan alert baru', function () {
 
     $firstAlert = Alert::first();
 
-    expect($firstAlert->type)->toBe('zscore_ph');
+    expect($firstAlert->type)->toBe('threshold_ph');
     expect($firstAlert->resolved_at)->toBeNull();
 
     Http::assertSentCount(1);
 
-    // 2. Sensor kembali normal.
-    $normalData = cooldownTestSensorData($device->id);
-
-    $normalData['ph_status'] = 'normal';
-    $normalData['z_score_ph'] = 0.5;
-    $normalData['is_anomaly'] = false;
-    $normalData['anomaly_status'] = 'normal';
-
-    Sensor::create($normalData);
+    // Kondisi kembali normal.
+    Sensor::create(
+        cooldownNormalSensorData($device->id)
+    );
 
     $firstAlert->refresh();
 
-    // Alert pertama selesai.
     expect($firstAlert->resolved_at)->not->toBeNull();
-
-    // Riwayat tetap tersimpan.
     expect(Alert::count())->toBe(1);
 
-    // 3. Sensor mengalami anomali kembali.
+    // Nilai kembali melebihi threshold.
     Sensor::create(
         cooldownTestSensorData($device->id)
     );
 
-    // Harus ada dua kejadian berbeda.
     expect(Alert::count())->toBe(2);
 
-    // Satu alert sudah selesai.
     expect(
         Alert::whereNotNull('resolved_at')->count()
     )->toBe(1);
 
-    // Satu alert baru masih aktif.
     expect(
         Alert::whereNull('resolved_at')->count()
     )->toBe(1);
 
-    // Kedua kejadian menghasilkan notifikasi.
     Http::assertSentCount(2);
+});
+
+/**
+ * TEST 8
+ * Anomali statistik tidak langsung memicu
+ * peringatan kondisi fermentasi.
+ */
+test('anomali zscore tidak langsung mengirim whatsapp', function () {
+
+    $device = Device::factory()->create();
+
+    $data = cooldownTestSensorData($device->id);
+
+    $data['z_score_ph'] = 4.5;
+    $data['ph_status'] = 'anomaly';
+    $data['is_anomaly'] = true;
+    $data['anomaly_status'] = 'anomaly';
+
+    Sensor::create($data);
+
+    // Hasil Z-Score tetap dicatat.
+    $sensor = Sensor::first();
+
+    expect($sensor->ph_status)->toBe('anomaly');
+
+    // Tidak membuat alert kondisi fermentasi.
+    expect(Alert::count())->toBe(0);
+
+    // Tidak mengirim WhatsApp.
+    Http::assertSentCount(0);
 });

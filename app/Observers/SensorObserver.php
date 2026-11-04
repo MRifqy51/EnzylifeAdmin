@@ -16,7 +16,6 @@ class SensorObserver
      */
     public function created(Sensor $sensor): void
     {
-        $this->checkZScore($sensor);
         $this->checkThreshold($sensor);
     }
 

@@ -11,11 +11,13 @@ use Illuminate\Support\Facades\Http;
 uses(RefreshDatabase::class);
 
 /**
- * Konfigurasi simulasi WhatsApp Fonnte.
- * Tidak melakukan pengiriman pesan sungguhan.
+ * Konfigurasi simulasi Fonnte.
+ * Tidak mengirim WhatsApp sungguhan.
  */
 function setupEnzylifeWhatsAppFake(): void
 {
+    expect(config('database.default'))->toBe('sqlite');
+
     config()->set('services.fonnte.token', 'test-token');
     config()->set(
         'services.fonnte.admin_phone',
@@ -34,7 +36,7 @@ function setupEnzylifeWhatsAppFake(): void
 
 /**
  * Threshold khusus pengujian.
- * Bukan nilai biologis fermentasi yang telah divalidasi.
+ * Bukan batas biologis fermentasi final.
  */
 function setupEnzylifeTestThresholds(
     float $liquidMin = -50.0,
@@ -58,18 +60,17 @@ function setupEnzylifeTestThresholds(
     $setting->gas_max = 10000.0;
 
     $setting->collection_interval = 5;
+    $setting->whatsapp_number = '6281234567890';
 
     $setting->save();
 }
 
 /**
- * Data sensor dasar untuk simulasi.
+ * Data sensor simulasi.
  *
- * Status Z-Score disimpan per parameter:
- * - ph_status
- * - temp_status
- *
- * Nilai dapat diganti melalui $overrides.
+ * Status hasil Z-Score disediakan secara
+ * langsung agar pengujian fokus pada Observer
+ * dan pengiriman WhatsApp.
  */
 function enzylifeSensorData(
     int $deviceId,
@@ -78,7 +79,6 @@ function enzylifeSensorData(
     return array_merge([
         'device_id' => $deviceId,
 
-        // Pembacaan sensor
         'ph' => 3.5,
         'ph_raw' => 3.5,
 
@@ -89,36 +89,28 @@ function enzylifeSensorData(
         'humidity' => 70.0,
         'gas' => 300.0,
 
-        // Hasil Z-Score simulasi
         'z_score_ph' => 0.5,
         'z_score_temp' => 0.5,
 
-        // Status gabungan
         'is_anomaly' => false,
         'anomaly_status' => 'normal',
 
-        // Status masing-masing parameter
         'ph_status' => 'normal',
         'temp_status' => 'normal',
     ], $overrides);
 }
 
-/*
-|--------------------------------------------------------------------------
-| TEST 1 - ALERT DANGER
-|--------------------------------------------------------------------------
-*/
-
+/**
+ * TEST 1
+ * Threshold maksimum pH menghasilkan danger.
+ */
 test('alert danger mengirim whatsapp sekali selama cooldown', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
 
     setupEnzylifeWhatsAppFake();
     setupEnzylifeTestThresholds();
 
     $device = Device::factory()->create();
 
-    // pH melewati threshold maksimum 4.0
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 4.5,
@@ -127,11 +119,11 @@ test('alert danger mengirim whatsapp sekali selama cooldown', function () {
     );
 
     expect(Alert::count())->toBe(1);
+    expect(Alert::first()->type)->toBe('threshold_ph');
     expect(Alert::first()->level)->toBe('danger');
 
     Http::assertSentCount(1);
 
-    // Kondisi danger yang sama masih dalam 5 menit
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 4.6,
@@ -139,27 +131,21 @@ test('alert danger mengirim whatsapp sekali selama cooldown', function () {
         ])
     );
 
-    // Cooldown mencegah alert tambahan
     expect(Alert::count())->toBe(1);
     Http::assertSentCount(1);
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 2 - ALERT WARNING
-|--------------------------------------------------------------------------
-*/
-
+/**
+ * TEST 2
+ * Threshold minimum pH menghasilkan warning.
+ */
 test('alert warning mengirim whatsapp sekali selama cooldown', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
 
     setupEnzylifeWhatsAppFake();
     setupEnzylifeTestThresholds();
 
     $device = Device::factory()->create();
 
-    // pH berada di bawah threshold minimum 3.0
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 2.5,
@@ -168,11 +154,11 @@ test('alert warning mengirim whatsapp sekali selama cooldown', function () {
     );
 
     expect(Alert::count())->toBe(1);
+    expect(Alert::first()->type)->toBe('threshold_ph');
     expect(Alert::first()->level)->toBe('warning');
 
     Http::assertSentCount(1);
 
-    // Kondisi warning berulang selama cooldown
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 2.6,
@@ -184,301 +170,194 @@ test('alert warning mengirim whatsapp sekali selama cooldown', function () {
     Http::assertSentCount(1);
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 3 - ANOMALI Z-SCORE PH
-|--------------------------------------------------------------------------
-*/
-
-test('anomali zscore ph mengirim whatsapp sekali selama cooldown', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
+/**
+ * TEST 3
+ * Anomali statistik pH tidak langsung
+ * menghasilkan alert atau WhatsApp.
+ */
+test('anomali zscore ph tidak mengirim whatsapp', function () {
 
     setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds();
 
     $device = Device::factory()->create();
 
-    // Simulasi pH dengan Z-Score > 3
-    Sensor::create(
+    $sensor = Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 4.5,
             'ph_raw' => 4.5,
-
             'z_score_ph' => 4.2,
-            'z_score_temp' => 0.5,
-
             'is_anomaly' => true,
             'anomaly_status' => 'anomaly',
-
             'ph_status' => 'anomaly',
-            'temp_status' => 'normal',
         ])
     );
 
-    expect(Alert::count())->toBe(1);
+    expect($sensor->ph_status)->toBe('anomaly');
+    expect((float) $sensor->z_score_ph)
+        ->toBeGreaterThan(3.0);
 
-    expect(Alert::first()->level)
-        ->toBe('danger');
+    expect(Alert::count())->toBe(0);
+    Http::assertNothingSent();
 
-    expect(Alert::first()->message)
-        ->toContain('Anomali Z-Score pH');
-
-    Http::assertSentCount(1);
-
-    // Anomali pH kembali terjadi
+    // Pembacaan anomali kedua juga tidak
+    // menghasilkan peringatan fermentasi.
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 4.6,
             'ph_raw' => 4.6,
-
             'z_score_ph' => 4.5,
-            'z_score_temp' => 0.4,
-
             'is_anomaly' => true,
             'anomaly_status' => 'anomaly',
-
             'ph_status' => 'anomaly',
-            'temp_status' => 'normal',
         ])
     );
 
-    // Tidak boleh membuat alert berulang
-    expect(Alert::count())->toBe(1);
-    Http::assertSentCount(1);
+    expect(Alert::count())->toBe(0);
+    Http::assertNothingSent();
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 4 - ANOMALI Z-SCORE SUHU CAIRAN
-|--------------------------------------------------------------------------
-*/
-
-test('anomali zscore suhu cairan mengirim whatsapp sekali selama cooldown', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
+/**
+ * TEST 4
+ * Anomali statistik suhu cairan tidak
+ * langsung menghasilkan alert WhatsApp.
+ */
+test('anomali zscore suhu cairan tidak mengirim whatsapp', function () {
 
     setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds(
+        liquidMin: 20.0,
+        liquidMax: 30.0
+    );
 
     $device = Device::factory()->create();
 
-    // Simulasi DS18B20 dengan Z-Score > 3
-    Sensor::create(
+    $sensor = Sensor::create(
         enzylifeSensorData($device->id, [
             'liquid_temperature' => 35.0,
             'temp_raw' => 35.0,
-
-            'z_score_ph' => 0.5,
             'z_score_temp' => 4.2,
-
             'is_anomaly' => true,
             'anomaly_status' => 'anomaly',
-
-            'ph_status' => 'normal',
             'temp_status' => 'anomaly',
         ])
     );
 
-    expect(Alert::count())->toBe(1);
+    expect($sensor->temp_status)->toBe('anomaly');
+    expect((float) $sensor->z_score_temp)
+        ->toBeGreaterThan(3.0);
 
-    expect(Alert::first()->level)
-        ->toBe('danger');
-
-    expect(Alert::first()->message)
-        ->toContain('Anomali Z-Score Suhu Cairan');
-
-    Http::assertSentCount(1);
-
-    // Anomali suhu cairan terjadi kembali
-    Sensor::create(
-        enzylifeSensorData($device->id, [
-            'liquid_temperature' => 36.0,
-            'temp_raw' => 36.0,
-
-            'z_score_ph' => 0.4,
-            'z_score_temp' => 4.5,
-
-            'is_anomaly' => true,
-            'anomaly_status' => 'anomaly',
-
-            'ph_status' => 'normal',
-            'temp_status' => 'anomaly',
-        ])
-    );
-
-    // Cooldown mencegah duplikasi
-    expect(Alert::count())->toBe(1);
-    Http::assertSentCount(1);
+    expect(Alert::count())->toBe(0);
+    Http::assertNothingSent();
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 5 - INSUFFICIENT DATA
-|--------------------------------------------------------------------------
-*/
-
-test('data historis belum cukup tidak mengirim alert anomali', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
+/**
+ * TEST 5
+ * Histori belum mencukupi tidak memicu
+ * alert threshold dalam implementasi saat ini.
+ */
+test('data historis belum cukup tidak mengirim alert', function () {
 
     setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds();
 
     $device = Device::factory()->create();
 
-    // Simulasi data historis belum mencukupi
     Sensor::create(
         enzylifeSensorData($device->id, [
             'z_score_ph' => null,
             'z_score_temp' => null,
-
-            'is_anomaly' => false,
             'anomaly_status' => 'insufficient_data',
-
             'ph_status' => 'insufficient_data',
             'temp_status' => 'insufficient_data',
         ])
     );
 
-    // Tidak boleh dianggap sebagai anomali
-    expect(
-        Alert::where(
-            'message',
-            'LIKE',
-            'Anomali Z-Score%'
-        )->count()
-    )->toBe(0);
-
+    expect(Alert::count())->toBe(0);
     Http::assertNothingSent();
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 6 - INVALID READING
-|--------------------------------------------------------------------------
-*/
-
-test('invalid reading tidak mengirim alert anomali zscore', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
+/**
+ * TEST 6
+ * Pembacaan di luar rentang fisik
+ * tidak menghasilkan alert fermentasi.
+ */
+test('invalid reading tidak mengirim alert whatsapp', function () {
 
     setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds();
 
     $device = Device::factory()->create();
 
-    // pH 16 berada di luar rentang fisik 0-14
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 16.0,
             'ph_raw' => 16.0,
-
             'z_score_ph' => null,
-            'z_score_temp' => 0.5,
-
             'is_anomaly' => true,
             'anomaly_status' => 'invalid_reading',
-
             'ph_status' => 'invalid_reading',
-            'temp_status' => 'normal',
         ])
     );
 
-    // Pembacaan tidak valid bukan anomali Z-Score
-    expect(
-        Alert::where(
-            'message',
-            'LIKE',
-            'Anomali Z-Score%'
-        )->count()
-    )->toBe(0);
-
+    expect(Alert::count())->toBe(0);
     Http::assertNothingSent();
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 7 - UNDEFINED Z-SCORE
-|--------------------------------------------------------------------------
-*/
-
-test('undefined zscore tidak mengirim alert anomali', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
+/**
+ * TEST 7
+ * Z-Score yang tidak dapat dihitung
+ * tidak boleh memicu alert.
+ */
+test('undefined zscore tidak mengirim alert', function () {
 
     setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds();
 
     $device = Device::factory()->create();
 
-    // Simulasi Z-Score yang tidak dapat dihitung
     Sensor::create(
         enzylifeSensorData($device->id, [
             'z_score_ph' => null,
             'z_score_temp' => null,
-
-            'is_anomaly' => false,
             'anomaly_status' => 'undefined_z_score',
-
             'ph_status' => 'undefined_z_score',
             'temp_status' => 'undefined_z_score',
         ])
     );
 
-    expect(
-        Alert::where(
-            'message',
-            'LIKE',
-            'Anomali Z-Score%'
-        )->count()
-    )->toBe(0);
-
+    expect(Alert::count())->toBe(0);
     Http::assertNothingSent();
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 8 - COOLDOWN BERDASARKAN PERANGKAT
-|--------------------------------------------------------------------------
-*/
-
-test('cooldown anomali zscore terpisah untuk setiap perangkat', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
+/**
+ * TEST 8
+ * Cooldown threshold berlaku per perangkat,
+ * bukan secara global.
+ */
+test('cooldown threshold terpisah untuk setiap perangkat', function () {
 
     setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds();
 
-    // Dua perangkat berbeda
     $deviceA = Device::factory()->create();
     $deviceB = Device::factory()->create();
 
-    $anomalyData = [
+    $thresholdData = [
         'ph' => 4.5,
         'ph_raw' => 4.5,
-
-        'z_score_ph' => 4.2,
-        'z_score_temp' => 0.5,
-
-        'is_anomaly' => true,
-        'anomaly_status' => 'anomaly',
-
-        'ph_status' => 'anomaly',
-        'temp_status' => 'normal',
+        'ph_status' => 'normal',
+        'z_score_ph' => 0.5,
     ];
 
-    // Anomali dari perangkat A
     Sensor::create(
-        enzylifeSensorData(
-            $deviceA->id,
-            $anomalyData
-        )
+        enzylifeSensorData($deviceA->id, $thresholdData)
     );
 
-    // Anomali dari perangkat B
     Sensor::create(
-        enzylifeSensorData(
-            $deviceB->id,
-            $anomalyData
-        )
+        enzylifeSensorData($deviceB->id, $thresholdData)
     );
 
-    // Masing-masing perangkat membuat alert
     expect(Alert::count())->toBe(2);
 
     expect(
@@ -491,33 +370,25 @@ test('cooldown anomali zscore terpisah untuk setiap perangkat', function () {
 
     Http::assertSentCount(2);
 
-    // Anomali berulang dari perangkat A
+    // Pelanggaran ulang perangkat A
+    // masih dalam cooldown.
     Sensor::create(
-        enzylifeSensorData(
-            $deviceA->id,
-            $anomalyData
-        )
+        enzylifeSensorData($deviceA->id, $thresholdData)
     );
 
-    // Cooldown hanya berlaku untuk perangkat A
     expect(Alert::count())->toBe(2);
-
     Http::assertSentCount(2);
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEST 9 - INDEPENDENSI PH DAN SUHU CAIRAN
-|--------------------------------------------------------------------------
-*/
-
+/**
+ * TEST 9
+ * Anomali pH tidak menghalangi pemeriksaan
+ * threshold suhu cairan yang lolos filter.
+ */
 test('anomali ph tidak menghalangi threshold suhu cairan', function () {
-
-    expect(config('database.default'))->toBe('sqlite');
 
     setupEnzylifeWhatsAppFake();
 
-    // Threshold suhu cairan maksimum 30 derajat
     setupEnzylifeTestThresholds(
         liquidMin: 20.0,
         liquidMax: 30.0
@@ -525,9 +396,6 @@ test('anomali ph tidak menghalangi threshold suhu cairan', function () {
 
     $device = Device::factory()->create();
 
-    // pH mengalami anomali statistik.
-    // Suhu cairan normal secara Z-Score,
-    // tetapi melewati threshold operasional.
     Sensor::create(
         enzylifeSensorData($device->id, [
             'ph' => 4.5,
@@ -547,27 +415,25 @@ test('anomali ph tidak menghalangi threshold suhu cairan', function () {
         ])
     );
 
-    // Alert anomali pH
+    // pH anomali tidak menjadi alert fermentasi.
+    expect(
+        Alert::where('type', 'zscore_ph')->count()
+    )->toBe(0);
+
+    expect(
+        Alert::where('type', 'threshold_ph')->count()
+    )->toBe(0);
+
+    // Suhu yang lolos filter tetap diperiksa.
     expect(
         Alert::where(
-            'message',
-            'LIKE',
-            'Anomali Z-Score pH:%'
+            'type',
+            'threshold_liquid_temperature'
         )->count()
     )->toBe(1);
 
-    // Alert threshold suhu cairan
-    expect(
-        Alert::where(
-            'message',
-            'LIKE',
-            'Sensor Liquid Temperature%'
-        )->count()
-    )->toBe(1);
+    expect(Alert::count())->toBe(1);
 
-    // Total dua alert
-    expect(Alert::count())->toBe(2);
-
-    // Masing-masing menghasilkan permintaan WhatsApp
-    Http::assertSentCount(2);
+    // Hanya threshold suhu memicu WhatsApp.
+    Http::assertSentCount(1);
 });
