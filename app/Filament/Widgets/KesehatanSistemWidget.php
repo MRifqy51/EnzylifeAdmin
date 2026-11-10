@@ -7,6 +7,7 @@ use Filament\Widgets\Widget;
 use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
 use Filament\Notifications\Notification;
+use App\Models\Sensor;
 
 class KesehatanSistemWidget extends Widget
 {
@@ -26,11 +27,25 @@ class KesehatanSistemWidget extends Widget
     // Fungsi ini dipanggil otomatis oleh Filament saat polling interval tercapai
     public function updateStatus()
     {
-        // 1. Ambil data paling baru dengan query yang bersih
+        // Periksa waktu data sensor terakhir diterima.
+        $latestSensor = Sensor::query()
+            ->latest('id')
+            ->first();
+
+        $this->cloudActive = $latestSensor
+            && $latestSensor->created_at
+            && $latestSensor->created_at->gte(now()->subSeconds(30));
+
+        // Jika tidak ada data terbaru, status MicroSD tidak dapat dipastikan.
+        if (!$this->cloudActive) {
+            $this->sdStatus = 'UNKNOWN';
+            return;
+        }
+
+        // Jika perangkat masih mengirim data, gunakan status MicroSD terakhir.
         $device = Device::query()->where('id', 1)->first();
-        
-        // 2. Update variabel $sdStatus
-        $this->sdStatus = $device ? $device->sd_status : 'DISCONNECTED';
+
+        $this->sdStatus = $device?->sd_status ?? 'UNKNOWN';
     }
     
     public function ejectSDCard()
@@ -68,4 +83,5 @@ class KesehatanSistemWidget extends Widget
 
         $this->updateStatus();
     }
+    public bool $cloudActive = false;
 }

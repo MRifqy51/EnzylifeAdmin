@@ -12,11 +12,19 @@
                 <x-heroicon-o-cloud class="w-4 h-4 text-green-300" />
                 <span>Cloud Sync</span>
             </div>
-            <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-500/20 text-green-300 font-mono text-[10px] uppercase font-bold">
-                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Active
-            </span>
-        </div>
 
+            @if($cloudActive)
+                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-500/20 text-green-300 font-mono text-[10px] uppercase font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                    ACTIVE
+                </span>
+            @else
+                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-mono text-[10px] uppercase font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    OFFLINE
+                </span>
+            @endif
+        </div>
         {{-- MicroSD Backup --}}
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -31,6 +39,11 @@
             @elseif($sdStatus === 'EJECTED')
                 <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-mono text-[10px] uppercase font-bold">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> EJECTED
+                </span>
+            @elseif($sdStatus === 'UNKNOWN')
+                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-500/20 text-gray-300 font-mono text-[10px] uppercase font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                    UNKNOWN
                 </span>
             @else
                 <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-mono text-[10px] uppercase font-bold">
