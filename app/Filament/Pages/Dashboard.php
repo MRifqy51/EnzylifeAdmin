@@ -59,32 +59,6 @@ class Dashboard extends Page
                 )
             );
 
-        // Evaluasi kesiapan baseline.
-        $baselineStarted = $device?->baseline_started_at !== null;
-        $baselineReady = false;
-
-        if ($baselineStarted && $latest) {
-            $zscoreService = app(ZScoreService::class);
-
-            $phCount = count(
-                $zscoreService->getHistoricalData(
-                    'ph_raw',
-                    $device->id,
-                    30
-                )
-            );
-
-            $tempCount = count(
-                $zscoreService->getHistoricalData(
-                    'temp_raw',
-                    $device->id,
-                    30
-                )
-            );
-
-            $baselineReady = $phCount >= 30 && $tempCount >= 30;
-        }
-
         // Memeriksa alert aktif untuk perangkat yang sedang ditampilkan.
         $activeAlerts = Alert::query()
             ->whereNotNull('type')
@@ -109,8 +83,6 @@ class Dashboard extends Page
         $status = match (true) {
             $latest === null => 'no_data',
             $isStale => 'stale',
-            !$baselineStarted => 'unverified',
-            !$baselineReady => 'collecting',
             $hasDanger => 'danger',
             $hasWarning => 'warning',
             default => 'no_active_alert',
