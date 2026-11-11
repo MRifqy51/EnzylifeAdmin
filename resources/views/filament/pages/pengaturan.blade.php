@@ -1,16 +1,16 @@
-
 <x-filament-panels::page>
-    <form wire:submit.prevent="save"
-          x-data="{ isAkunTab: window.location.href.includes('akun-pengguna') }"
-          @click.window="isAkunTab = window.location.href.includes('akun-pengguna')">
+    <form wire:submit.prevent="save">
 
         {{ $this->form }}
 
-        {{-- Tombol hanya muncul jika URL mengandung 'akun-pengguna' --}}
-        <div class="mt-6 flex justify-start" x-show="isAkunTab" style="display: none;">
-            <x-filament::button type="submit">
-                Simpan Perubahan Akun
+        <div class="mt-6 flex justify-start">
+            <x-filament::button
+                type="submit"
+                icon="heroicon-o-check"
+            >
+                Simpan Pengaturan
             </x-filament::button>
         </div>
+
     </form>
 </x-filament-panels::page>
