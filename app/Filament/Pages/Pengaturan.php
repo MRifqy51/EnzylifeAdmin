@@ -10,7 +10,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -21,7 +20,6 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     use Forms\Concerns\InteractsWithForms;
 
     protected static ?string $navigationLabel = 'Pengaturan';
-
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
     protected static ?int $navigationSort = 3;
 
@@ -29,9 +27,6 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
 
     public ?array $data = [];
 
-    // ─────────────────────────────────────────
-    // INIT
-    // ─────────────────────────────────────────
     public function mount(): void
     {
         $user = Auth::user();
@@ -51,8 +46,6 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             'gas_max' => $setting->gas_max,
             'humidity_min' => $setting->humidity_min,
             'humidity_max' => $setting->humidity_max,
-
-            'collection_interval' => $setting->collection_interval,
         ]);
     }
 
@@ -61,26 +54,22 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
         return null;
     }
 
-    // ─────────────────────────────────────────
-    // FORM
-    // ─────────────────────────────────────────
     public function form(Schema $schema): Schema
     {
         return $schema
             ->statePath('data')
             ->schema([
-
                 Tabs::make('Pengaturan Tabs')
+                    ->persistTabInQueryString() // Agar tab aktif tercatat di URL
                     ->tabs([
-
                         // ======================
-                        // TAB: BATAS AMBANG SENSOR
+                        // TAB: BATAS AMBANG SENSOR (READ-ONLY)
                         // ======================
                         Tab::make('Ambang Batas Sensor')
                             ->icon('heroicon-o-adjustments-horizontal')
                             ->schema([
-
                                 Section::make('Batas Ambang Nilai Sensor')
+                                    ->description('Nilai batas ambang bersifat tetap sesuai standar parameter sistem fermentasi Eco Enzyme.')
                                     ->icon('heroicon-o-adjustments-horizontal')
                                     ->schema([
                                         $this->rangeField('ph', 'pH'),
@@ -89,25 +78,14 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                         $this->rangeField('gas', 'Gas (ppm)'),
                                         $this->rangeField('humidity', 'Kelembapan (%)'),
                                     ]),
-
-                                Section::make('Interval Pengambilan Data')
-                                    ->schema([
-                                        TextInput::make('collection_interval')
-                                            ->label('Interval Waktu (Detik)')
-                                            ->numeric()
-                                            ->minValue(1) // 👈 Ubah min ke 1 agar angka < 5 diperbolehkan
-                                            ->maxValue(3600)
-                                            ->required(),
-                                    ]),
                             ]),
 
                         // ======================
-                        // TAB: AKUN
+                        // TAB: AKUN PENGGUNA
                         // ======================
                         Tab::make('Akun Pengguna')
                             ->icon('heroicon-o-user')
                             ->schema([
-
                                 Section::make('Informasi Akun')
                                     ->icon('heroicon-o-user')
                                     ->schema([
@@ -127,17 +105,20 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                         TextInput::make('current_password')
                                             ->label('Kata Sandi Saat Ini')
                                             ->password()
+                                            ->placeholder('Masukkan kata sandi saat ini')
                                             ->dehydrated(false),
 
                                         TextInput::make('new_password')
                                             ->label('Kata Sandi Baru')
                                             ->password()
+                                            ->placeholder('Masukkan kata sandi baru')
                                             ->rule(Password::defaults())
                                             ->dehydrated(false),
 
                                         TextInput::make('confirm_password')
                                             ->label('Konfirmasi Kata Sandi Baru')
                                             ->password()
+                                            ->placeholder('Ulangi kata sandi baru')
                                             ->same('new_password')
                                             ->dehydrated(false),
                                     ])
@@ -145,40 +126,30 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                             ]),
                     ])
                     ->columnSpanFull(),
-
             ]);
     }
 
-    // ─────────────────────────────────────────
-    // DRY HELPER
-    // ─────────────────────────────────────────
     protected function rangeField(string $key, string $label): Grid
     {
         return Grid::make(2)->schema([
             TextInput::make("{$key}_min")
                 ->label("{$label} Minimal")
                 ->numeric()
-                ->inputMode('decimal')
-                ->required(),
+                ->disabled()
+                ->dehydrated(),
 
             TextInput::make("{$key}_max")
                 ->label("{$label} Maksimal")
                 ->numeric()
-                ->inputMode('decimal')
-                ->gte("{$key}_min")
-                ->required(),
+                ->disabled()
+                ->dehydrated(),
         ]);
     }
 
-    // ─────────────────────────────────────────
-    // SAVE
-    // ─────────────────────────────────────────
     public function save(): void
     {
-        // 1. Ambil data form yang tervalidasi
         $formData = $this->form->getState();
 
-        // 2. Update data User
         $user = Auth::user();
         if ($user) {
             $user->update([
@@ -187,31 +158,12 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             ]);
         }
 
-        // 3. Simpan setting ke Database
-        $settingData = collect($formData)->only([
-            'ph_min', 'ph_max',
-            'temperature_min', 'temperature_max',
-            'liquid_temperature_min', 'liquid_temperature_max',
-            'gas_min', 'gas_max',
-            'humidity_min', 'humidity_max',
-            'collection_interval'
-        ])->toArray();
-
-        $setting = $this->getSettingProperty();
-        $setting->update($settingData);
-
-        // 4. MENGUNCI ISI FORM: Isi ulang form dari data tersimpan
-        $this->form->fill($formData);
-
         Notification::make()
-            ->title('Pengaturan Berhasil Disimpan')
+            ->title('Perubahan Akun Berhasil Disimpan')
             ->success()
             ->send();
     }
 
-    // ─────────────────────────────────────────
-    // GETTERS
-    // ─────────────────────────────────────────
     protected function getSettingProperty(): Setting
     {
         return Setting::firstOrCreate([]);
