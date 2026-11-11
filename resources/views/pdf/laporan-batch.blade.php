@@ -47,6 +47,14 @@
                 Air: {{ $batchInfo->target_air ?? 0 }} Liter
             </td>
         </tr>
+        <tr>
+            <td colspan="2">
+                <strong>Estimasi Milestone Fermentasi:</strong>
+                Hari 7 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(7)->format('d M Y') }}) |
+                Hari 30 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(30)->format('d M Y') }}) |
+                Hari 90 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(90)->format('d M Y') }})
+            </td>
+        </tr>
     </table>
 
     <div class="section-title">Riwayat Pembacaan Sensor</div>

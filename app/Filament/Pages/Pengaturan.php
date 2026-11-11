@@ -291,26 +291,26 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     // 3. THRESHOLD HELPER
     // ==========================================
     protected function rangeField(
-        string $key,
-        string $label
-    ): Grid {
-        return Grid::make(2)
-            ->schema([
+    string $key,
+    string $label
+): Grid {
+    return Grid::make(2)
+        ->schema([
+            TextInput::make("{$key}_min")
+                ->label("{$label} Min")
+                ->numeric()
+                ->readOnly()
+                ->dehydrated(false)
+                ->helperText('Nilai threshold tetap dan tidak dapat diubah.'),
 
-                TextInput::make("{$key}_min")
-                    ->label("{$label} Min")
-                    ->numeric()
-                    ->inputMode('decimal')
-                    ->required(),
-
-                TextInput::make("{$key}_max")
-                    ->label("{$label} Max")
-                    ->numeric()
-                    ->inputMode('decimal')
-                    ->gte("{$key}_min")
-                    ->required(),
-            ]);
-    }
+            TextInput::make("{$key}_max")
+                ->label("{$label} Max")
+                ->numeric()
+                ->readOnly()
+                ->dehydrated(false)
+                ->helperText('Nilai threshold tetap dan tidak dapat diubah.'),
+        ]);
+}
 
     // ==========================================
     // 4. SAVE ALL SETTINGS
@@ -423,28 +423,10 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
         // ======================================
         $formData = $this->form->getState();
 
-        // ======================================
-        // SIAPKAN DATA PENGATURAN
-        // ======================================
+        // Threshold bersifat tetap dan tidak boleh diubah melalui form.
         $settingData = collect($formData)
             ->only([
-                'ph_min',
-                'ph_max',
-
-                'temperature_min',
-                'temperature_max',
-
-                'liquid_temperature_min',
-                'liquid_temperature_max',
-
-                'gas_min',
-                'gas_max',
-
-                'humidity_min',
-                'humidity_max',
-
                 'collection_interval',
-
                 'whatsapp_number',
             ])
             ->toArray();
