@@ -71,10 +71,6 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             'humidity_min' => $setting->humidity_min,
             'humidity_max' => $setting->humidity_max,
 
-            // INTERVAL
-            'collection_interval' =>
-                $setting->collection_interval,
-
             // WHATSAPP
             'whatsapp_number' =>
                 $setting->whatsapp_number
@@ -87,6 +83,11 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
         ]);
     }
 
+    public function getSubheading(): ?string
+    {
+        return null;
+    }
+
     // ==========================================
     // 2. FORM
     // ==========================================
@@ -97,10 +98,12 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             ->schema([
 
                 Tabs::make('Pengaturan Tabs')
+                    ->id('setting-tab')
+                    ->persistTabInQueryString()
                     ->tabs([
 
                         // ==========================
-                        // TAB: THRESHOLDS
+                        // TAB: THRESHOLDS (READ-ONLY)
                         // ==========================
                         Tab::make('Ambang Batas Sensor')
                             ->icon(
@@ -109,6 +112,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                             ->schema([
 
                                 Section::make('Batas Ambang Nilai Sensor')
+                                    ->description('Nilai batas ambang bersifat tetap sesuai standar parameter sistem fermentasi Eco Enzyme.')
                                     ->icon(
                                         'heroicon-o-adjustments-horizontal'
                                     )
@@ -129,9 +133,6 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                             'Liquid Temp'
                                         ),
 
-                                        // MQ-135 masih Raw ADC.
-                                        // Threshold gas tidak dipakai
-                                        // oleh SensorObserver saat ini.
                                         $this->rangeField(
                                             'gas',
                                             'Gas (Raw ADC)'
@@ -142,30 +143,10 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                             'Humidity (%)'
                                         ),
                                     ]),
-
-                                Section::make('Interval Pengambilan Data')
-                                    ->schema([
-
-                                        TextInput::make(
-                                            'collection_interval'
-                                        )
-                                            ->label(
-                                                'Interval Waktu (Detik)'
-                                            )
-                                            ->numeric()
-                                            ->minValue(5)
-                                            ->maxValue(3600)
-                                            ->required()
-                                            ->helperText(
-                                                'Interval 5–3600 detik. Jika nilai berubah, '
-                                                . 'EnzyLife akan mengirim konfigurasi '
-                                                . 'melalui MQTT ke ESP32.'
-                                            ),
-                                    ]),
                             ]),
 
                         // ==========================
-                        // TAB: ACCOUNT
+                        // TAB: ACCOUNT (EDITABLE)
                         // ==========================
                         Tab::make('Akun Pengguna')
                             ->icon('heroicon-o-user')
@@ -257,6 +238,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                                 'Kata Sandi Saat Ini'
                                             )
                                             ->password()
+                                            ->placeholder('Masukkan kata sandi saat ini')
                                             ->revealable()
                                             ->dehydrated(false),
 
@@ -267,6 +249,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                                 'New Password'
                                             )
                                             ->password()
+                                            ->placeholder('Masukkan kata sandi baru')
                                             ->revealable()
                                             ->dehydrated(false),
 
@@ -277,6 +260,7 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
                                                 'Konfirmasi Kata Sandi Baru'
                                             )
                                             ->password()
+                                            ->placeholder('Ulangi kata sandi baru')
                                             ->revealable()
                                             ->dehydrated(false),
                                     ])
@@ -288,32 +272,32 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
     }
 
     // ==========================================
-    // 3. THRESHOLD HELPER
+    // 3. THRESHOLD HELPER (LOCKED / READ-ONLY)
     // ==========================================
     protected function rangeField(
-    string $key,
-    string $label
-): Grid {
-    return Grid::make(2)
-        ->schema([
-            TextInput::make("{$key}_min")
-                ->label("{$label} Min")
-                ->numeric()
-                ->readOnly()
-                ->dehydrated(false)
-                ->helperText('Nilai threshold tetap dan tidak dapat diubah.'),
+        string $key,
+        string $label
+    ): Grid {
+        return Grid::make(2)
+            ->schema([
+                TextInput::make("{$key}_min")
+                    ->label("{$label} Min")
+                    ->numeric()
+                    ->disabled() // Dikunci agar tidak bisa diedit/dipencet
+                    ->dehydrated(false)
+                    ->helperText('Nilai threshold tetap dan tidak dapat diubah.'),
 
-            TextInput::make("{$key}_max")
-                ->label("{$label} Max")
-                ->numeric()
-                ->readOnly()
-                ->dehydrated(false)
-                ->helperText('Nilai threshold tetap dan tidak dapat diubah.'),
-        ]);
-}
+                TextInput::make("{$key}_max")
+                    ->label("{$label} Max")
+                    ->numeric()
+                    ->disabled() // Dikunci agar tidak bisa diedit/dipencet
+                    ->dehydrated(false)
+                    ->helperText('Nilai threshold tetap dan tidak dapat diubah.'),
+            ]);
+    }
 
     // ==========================================
-    // 4. SAVE ALL SETTINGS
+    // 4. SAVE ALL SETTINGS (ACCOUNT ONLY)
     // ==========================================
     public function save(): void
     {
@@ -328,118 +312,51 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             return;
         }
 
-        // ======================================
-        // AMBIL INPUT PASSWORD SEBELUM
-        // FORM DI-DEHYDRATE
-        // ======================================
-        $currentPassword = (string) (
-            $this->data['current_password'] ?? ''
-        );
+        $currentPassword = (string) ($this->data['current_password'] ?? '');
+        $newPassword = (string) ($this->data['new_password'] ?? '');
+        $confirmPassword = (string) ($this->data['confirm_password'] ?? '');
 
-        $newPassword = (string) (
-            $this->data['new_password'] ?? ''
-        );
-
-        $confirmPassword = (string) (
-            $this->data['confirm_password'] ?? ''
-        );
-
-        // ======================================
-        // PERIKSA APAKAH ADMIN INGIN
-        // MENGUBAH PASSWORD
-        // ======================================
         $wantsPasswordChange =
             $currentPassword !== '' ||
             $newPassword !== '' ||
             $confirmPassword !== '';
 
-        // ======================================
-        // VALIDASI PASSWORD
-        // ======================================
         if ($wantsPasswordChange) {
-
             Validator::make(
                 [
                     'data' => [
-                        'current_password' =>
-                            $currentPassword,
-
-                        'new_password' =>
-                            $newPassword,
-
-                        'confirm_password' =>
-                            $confirmPassword,
+                        'current_password' => $currentPassword,
+                        'new_password' => $newPassword,
+                        'confirm_password' => $confirmPassword,
                     ],
                 ],
                 [
-                    'data.current_password' => [
-                        'required',
-                        'string',
-                    ],
-
-                    'data.new_password' => [
-                        'required',
-                        'string',
-                        Password::defaults(),
-                    ],
-
-                    'data.confirm_password' => [
-                        'required',
-                        'same:data.new_password',
-                    ],
+                    'data.current_password' => ['required', 'string'],
+                    'data.new_password' => ['required', 'string', Password::defaults()],
+                    'data.confirm_password' => ['required', 'same:data.new_password'],
                 ],
                 [
-                    'data.current_password.required' =>
-                        'Password lama wajib diisi.',
-
-                    'data.new_password.required' =>
-                        'Password baru wajib diisi.',
-
-                    'data.confirm_password.required' =>
-                        'Konfirmasi password wajib diisi.',
-
-                    'data.confirm_password.same' =>
-                        'Konfirmasi password tidak sama '
-                        . 'dengan password baru.',
+                    'data.current_password.required' => 'Password lama wajib diisi.',
+                    'data.new_password.required' => 'Password baru wajib diisi.',
+                    'data.confirm_password.required' => 'Konfirmasi password wajib diisi.',
+                    'data.confirm_password.same' => 'Konfirmasi password tidak sama dengan password baru.',
                 ]
             )->validate();
 
-            // VALIDASI PASSWORD LAMA
-            if (
-                !Hash::check(
-                    $currentPassword,
-                    $user->password
-                )
-            ) {
+            if (!Hash::check($currentPassword, $user->password)) {
                 throw ValidationException::withMessages([
-                    'data.current_password' =>
-                        'Password lama tidak sesuai.',
+                    'data.current_password' => 'Password lama tidak sesuai.',
                 ]);
             }
         }
 
-        // ======================================
-        // VALIDASI SELURUH FORM
-        // ======================================
         $formData = $this->form->getState();
 
-        // Threshold bersifat tetap dan tidak boleh diubah melalui form.
-        $settingData = collect($formData)
-            ->only([
-                'collection_interval',
-                'whatsapp_number',
-            ])
-            ->toArray();
+        // Hanya simpan WhatsApp number, threshold & interval diabaikan karena read-only/dihapus
+        $settingData = [
+            'whatsapp_number' => $formData['whatsapp_number'] ?? null,
+        ];
 
-        // Catat interval sebelum diperbarui supaya MQTT hanya
-        // dikirim saat nilainya benar-benar berubah.
-        $oldInterval = $this->getSettingProperty()->collection_interval;
-        $newInterval = (int) $formData['collection_interval'];
-        $intervalChanged = (int) $oldInterval !== $newInterval;
-
-        // ======================================
-        // TRANSAKSI DATABASE
-        // ======================================
         DB::transaction(function () use (
             $user,
             $formData,
@@ -447,88 +364,30 @@ class Pengaturan extends Page implements Forms\Contracts\HasForms
             $wantsPasswordChange,
             $newPassword
         ) {
+            $user->name = $formData['full_name'];
+            $user->email = $formData['email_address'];
 
-            // ==============================
-            // UPDATE PROFIL ADMIN
-            // ==============================
-            $user->name =
-                $formData['full_name'];
-
-            $user->email =
-                $formData['email_address'];
-
-            // ==============================
-            // UPDATE PASSWORD (OPSIONAL)
-            // ==============================
             if ($wantsPasswordChange) {
-                $user->password =
-                    Hash::make($newPassword);
+                $user->password = Hash::make($newPassword);
             }
 
             $user->save();
 
-            // ==============================
-            // UPDATE SETTING
-            // ==============================
             $setting = $this->getSettingProperty();
-
-            $setting->forceFill(
-                $settingData
-            );
-
+            $setting->forceFill($settingData);
             $setting->save();
         });
 
-        // ======================================
-        // HAPUS PASSWORD DARI STATE FORM
-        // ======================================
         $this->data['current_password'] = null;
         $this->data['new_password'] = null;
         $this->data['confirm_password'] = null;
 
-        // ======================================
-        // KIRIM INTERVAL VIA MQTT SETELAH COMMIT
-        // ======================================
-        // Jangan kirim di dalam transaksi database:
-        // masalah jaringan tidak boleh membatalkan perubahan akun.
-        if ($intervalChanged) {
-            try {
-                app(MqttPublisherService::class)
-                    ->publishInterval($newInterval);
-            } catch (\Throwable $e) {
-                Log::warning('Gagal publish interval EnzyLife via MQTT', [
-                    'interval_seconds' => $newInterval,
-                    'error_type' => get_class($e),
-                    // Hindari mencatat kredensial MQTT.
-                ]);
-
-                Notification::make()
-                    ->title('Pengaturan tersimpan, MQTT belum berhasil')
-                    ->body(
-                        'Perubahan akun dan konfigurasi tersimpan di database, '
-                        . 'tetapi interval belum berhasil dikirim ke ESP32. '
-                        . 'Periksa koneksi HiveMQ. Pengiriman ulang '
-                        . 'perlu dilakukan secara terpisah.'
-                    )
-                    ->warning()
-                    ->send();
-
-                return;
-            }
-        }
-
-        // ======================================
-        // NOTIFIKASI SUKSES
-        // ======================================
         Notification::make()
-            ->title('Pengaturan berhasil disimpan')
+            ->title('Pengaturan Akun Berhasil Disimpan')
             ->body(
                 $wantsPasswordChange
-                    ? 'Pengaturan dan password admin '
-                        . 'berhasil diperbarui.'
-                    : 'Pengaturan akun, threshold, '
-                        . 'interval, dan WhatsApp '
-                        . 'berhasil disimpan.'
+                    ? 'Informasi profil dan password admin berhasil diperbarui.'
+                    : 'Informasi profil dan nomor WhatsApp berhasil diperbarui.'
             )
             ->success()
             ->send();
