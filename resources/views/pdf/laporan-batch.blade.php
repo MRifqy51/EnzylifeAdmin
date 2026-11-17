@@ -8,16 +8,16 @@
         .header { text-align: center; margin-bottom: 20px; border-b: 2px solid #2d4a3e; padding-bottom: 10px; }
         .header h2 { margin: 0; color: #2d4a3e; font-size: 18px; }
         .header p { margin: 3px 0 0 0; font-size: 11px; color: #666; }
-        
+
         .section-title { font-size: 13px; font-weight: bold; color: #2d4a3e; margin-top: 15px; margin-bottom: 8px; border-left: 3px solid #2d4a3e; padding-left: 6px; }
-        
+
         .info-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .info-table td { padding: 6px; background-color: #f9f9f9; border: 1px solid #eee; }
-        
+
         .data-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
         .data-table th, .data-table td { border: 1px solid #ddd; padding: 6px; text-align: center; }
         .data-table th { background-color: #2d4a3e; color: white; font-weight: bold; }
-        
+
         /* Mencegah header hilang saat tabel lanjut ke Halaman 2 */
         thead { display: table-header-group; }
         tr { page-break-inside: avoid; }
@@ -41,17 +41,17 @@
         </tr>
         <tr>
             <td colspan="2">
-                <strong>Target Takaran Bahan:</strong> 
-                Molase: {{ $batchInfo->target_molase ?? 0 }} KG | 
-                Sampah Organik: {{ $batchInfo->target_organik ?? 0 }} KG | 
+                <strong>Target Takaran Bahan:</strong>
+                Molase: {{ $batchInfo->target_molase ?? 0 }} KG |
+                Sampah Organik: {{ $batchInfo->target_organik ?? 0 }} KG |
                 Air: {{ $batchInfo->target_air ?? 0 }} Liter
             </td>
         </tr>
         <tr>
             <td colspan="2">
-                <strong>Estimasi Milestone Fermentasi:</strong> 
-                Hari 7 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(7)->format('d M Y') }}) | 
-                Hari 30 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(30)->format('d M Y') }}) | 
+                <strong>Estimasi Milestone Fermentasi:</strong>
+                Hari 7 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(7)->format('d M Y') }}) |
+                Hari 30 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(30)->format('d M Y') }}) |
                 Hari 90 ({{ \Carbon\Carbon::parse($batchInfo->tanggal_mulai ?? now())->addDays(90)->format('d M Y') }})
             </td>
         </tr>

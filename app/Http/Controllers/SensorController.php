@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sensor;
-use App\Services\AlertService;
-use App\Services\AlertServices;
 use Illuminate\Http\Request;
 
 class SensorController extends Controller
@@ -21,8 +19,6 @@ class SensorController extends Controller
     ]);
 
         $sensor = Sensor::create($data);
-
-        AlertService::check($sensor);
 
         return response()->json([
             'success' => true,

@@ -25,7 +25,7 @@ describe('Manajemen Autentikasi Admin', function () {
             'email' => 'admin@gmail.com',
             'password' => bcrypt('admin123'),
         ]);
-        
+
         Filament::setCurrentPanel(Filament::getPanel('admin'));
         $dashboardUrl = (string) Filament::getPanel('admin')->getUrl();
 
@@ -40,12 +40,12 @@ describe('Manajemen Autentikasi Admin', function () {
 
     it('TC-002 fr-01 Login Sistem Gagal dengan akun tidak valid', function () {
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        
+
         // Mengirimkan data salah ke rute kustom, memastikan di-redirect back dengan status error
         $this->post(route('login.post'), [
             'email' => 'salah@gmail.com',
             'password' => 'passwordsalah',
-        ])->assertStatus(302); 
+        ])->assertStatus(302);
 
         $this->assertGuest('web');
     });
@@ -67,13 +67,13 @@ describe('Manajemen Autentikasi Admin', function () {
         /** @var \Illuminate\Contracts\Auth\Authenticatable $admin */
         $admin = User::factory()->create();
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        
+
         $dashboardUrl = (string) Filament::getPanel('admin')->getUrl();
 
         $this->actingAs($admin, 'web');
 
         auth()->guard('web')->logout();
-        session()->invalidate(); 
+        session()->invalidate();
 
         expect(auth()->guard('web')->check())->toBeFalse();
         $this->get($dashboardUrl)->assertRedirect();
@@ -88,14 +88,14 @@ describe('Komunikasi IoT dan Validasi Sensor', function () {
 
     it('TC-003 fr-02, fr-03, fr-04, fr-05 Validasi Akuisisi Seluruh Parameter Data Sensor Real-time', function () {
         $device = Device::factory()->create();
-        
+
         $sensorPayload = [
             'device_id'          => $device->id,
-            'ph'                 => 4.5,   
-            'gas'                => 120.5, 
-            'temperature'        => 28.5,  
-            'humidity'           => 70.0,  
-            'liquid_temperature' => 31.2   
+            'ph'                 => 4.5,
+            'gas'                => 120.5,
+            'temperature'        => 28.5,
+            'humidity'           => 70.0,
+            'liquid_temperature' => 31.2
         ];
 
         Sensor::create($sensorPayload);
@@ -104,16 +104,16 @@ describe('Komunikasi IoT dan Validasi Sensor', function () {
 
     it('TC-004 fr-06 dan fr-12 Pengolahan Data Mentah (ADC) Menjadi Numerik dan Label Waktu', function () {
         $device = Device::factory()->create();
-        
+
         $rawSignalPh = "4.50";
         $rawSignalTemp = "29";
 
         $sensor = Sensor::create([
             'device_id'          => $device->id,
-            'ph'                 => (float) $rawSignalPh, 
+            'ph'                 => (float) $rawSignalPh,
             'liquid_temperature' => (float) $rawSignalTemp,
-            'temperature'        => 28.0, 
-            'gas'                => 40.0, 
+            'temperature'        => 28.0,
+            'gas'                => 40.0,
             'humidity'           => 60.0
         ]);
 
@@ -183,14 +183,14 @@ describe('Mekanisme Cadangan Data Offline dan Sinkronisasi Cloud', function () {
 
     it('TC-007 fr-09 Otomatisasi Sinkronisasi Ulang Data Cadangan dari Lokal Menuju Cloud Database', function () {
         $device = Device::factory()->create(['sd_status' => 'DISCONNECTED']);
-        
+
         $device->syncLocalDataToCloud();
         expect($device->fresh()->sd_status)->toBe('CONNECTED');
     });
 
     it('TC-008 fr-08 Mengakses dan Memuat Data pada Database Cloud (Kondisi Berhasil)', function () {
         $cloudApiResponse = ['http_code' => 200, 'body' => 'Cloud Data Valid'];
-        
+
         expect($cloudApiResponse['http_code'])->toBe(200);
         expect($cloudApiResponse['body'])->toBe('Cloud Data Valid');
     });
@@ -215,15 +215,15 @@ describe('Logika Ambang Batas Deteksi Otomatis', function () {
 
     it('TC-011 fr-13 Mengidentifikasi Kondisi di Luar Ambang Batas Aman Parameter', function () {
         $device = Device::factory()->create();
-        
+
         $sensorAbnormal = Sensor::create([
-            'device_id' => $device->id, 'ph' => 4.0, 'liquid_temperature' => 45.0, 
+            'device_id' => $device->id, 'ph' => 4.0, 'liquid_temperature' => 45.0,
             'temperature' => 28.0, 'gas' => 100.0, 'humidity' => 60.0
         ]);
         expect($sensorAbnormal->liquid_temperature)->toBeGreaterThan(40.0);
 
         $sensorNormal = Sensor::create([
-            'device_id' => $device->id, 'ph' => 4.0, 'liquid_temperature' => 30.0, 
+            'device_id' => $device->id, 'ph' => 4.0, 'liquid_temperature' => 30.0,
             'temperature' => 28.0, 'gas' => 100.0, 'humidity' => 60.0
         ]);
         expect($sensorNormal->liquid_temperature)->toBeLessThan(40.0);
@@ -234,8 +234,8 @@ describe('Logika Ambang Batas Deteksi Otomatis', function () {
         $sensor = Sensor::create(['device_id' => $device->id, 'ph' => 4.0, 'liquid_temperature' => 30.0, 'temperature' => 28.0, 'gas' => 380.0, 'humidity' => 60.0]);
 
         Alert::create([
-            'sensor_id' => $sensor->id, 
-            'level' => 'danger', 
+            'sensor_id' => $sensor->id,
+            'level' => 'danger',
             'message' => 'Kondisi abnormal terdeteksi!'
         ]);
 

@@ -7,9 +7,9 @@
 </head>
 <body class="bg-[#FFFFFF] min-h-screen flex items-center justify-center">
 
-<div class="w-[1000px] h-[550px] bg-white rounded-3xl 
-            border border-gray-200 
-            shadow-[0_10px_40px_rgba(0,0,0,0.15)] 
+<div class="w-[1000px] h-[550px] bg-white rounded-3xl
+            border border-gray-200
+            shadow-[0_10px_40px_rgba(0,0,0,0.15)]
             flex overflow-hidden">
 
     <div class="w-1/2 relative flex flex-col justify-between text-white p-10 bg-cover bg-center"

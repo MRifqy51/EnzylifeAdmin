@@ -41,7 +41,7 @@ class PemantauanBatch extends Page
             $startDate = Carbon::parse($activeBatch->tanggal_mulai)->startOfDay();
             $batchName = $activeBatch->nama_batch;
             $volume = $activeBatch->kapasitas_wadah . 'L';
-            $batchCode = $activeBatch->id_batch; 
+            $batchCode = $activeBatch->id_batch;
         } else {
             $startDate = Carbon::parse('2026-07-11')->startOfDay();
             $batchName = 'Fermentasi Eco Enzyme';
@@ -50,8 +50,8 @@ class PemantauanBatch extends Page
         }
 
         $today = Carbon::now()->startOfDay();
-        $totalDaysNeeded = 90; 
-        $daysPassed = max(0, $startDate->diffInDays($today)); 
+        $totalDaysNeeded = 90;
+        $daysPassed = max(0, $startDate->diffInDays($today));
         $progress = round(min(100, ($daysPassed / $totalDaysNeeded) * 100));
 
         // 🔥 Logika Deteksi Milestone untuk Banner Alert Sticky
@@ -87,12 +87,12 @@ class PemantauanBatch extends Page
 
         return [
             'name'           => $batchName,
-            'code'           => $batchCode,       
+            'code'           => $batchCode,
             'status'         => 'AKTIF',
             'progress'       => $progress,
-            'daysPassed'     => $daysPassed,      
-            'milestoneAlert' => $milestoneAlert,  
-            'milestones'     => $milestones,      
+            'daysPassed'     => $daysPassed,
+            'milestoneAlert' => $milestoneAlert,
+            'milestones'     => $milestones,
 
             'ph'       => $latestSensor?->ph ?? '—',
             'air_temp' => $latestSensor?->temperature ?? '—',
@@ -134,16 +134,33 @@ class PemantauanBatch extends Page
     public function exportCsv(): StreamedResponse
     {
         $rows = $this->getSensorReadings();
+
         return response()->streamDownload(function () use ($rows) {
             $h = fopen('php://output', 'w');
-            fputcsv($h, ['Waktu (Timestamp)', 'Tingkat pH', 'Suhu Udara (°C)', 'Suhu Cairan (°C)', 'Gas (ppm)', 'Kelembapan (%)']);
+
+            fputcsv($h, [
+                'Waktu (Timestamp)',
+                'Tingkat pH',
+                'Suhu Udara (°C)',
+                'Suhu Cairan (°C)',
+                'Gas (ppm)',
+                'Kelembapan (%)'
+            ]);
+
             foreach ($rows as $r) {
-                fputcsv($h, [Carbon::parse($r->created_at)->format('d M Y, H:i'), $r->ph, $r->temperature, $r->liquid_temperature, $r->gas, $r->humidity]);
+                fputcsv($h, [
+                    Carbon::parse($r->created_at)->format('d M Y, H:i'),
+                    $r->ph,
+                    $r->temperature,
+                    $r->liquid_temperature,
+                    $r->gas,
+                    $r->humidity,
+                ]);
             }
+
             fclose($h);
         }, 'log-sensor-eco-enzyme-' . now()->format('Y-m-d') . '.csv');
     }
-
     public function exportPdf()
     {
         $batchInfo = \App\Models\Batch::latest('tanggal_mulai')->first();
@@ -151,4 +168,5 @@ class PemantauanBatch extends Page
         $pdf = Pdf::loadView('pdf.laporan-batch', ['batchInfo' => $batchInfo, 'readings' => $readings, 'startDate' => $this->startDate, 'endDate' => $this->endDate]);
         return response()->streamDownload(function () use ($pdf) { echo $pdf->output(); }, 'laporan-batch-eco-enzyme-' . now()->format('Y-m-d') . '.pdf');
     }
+
 }

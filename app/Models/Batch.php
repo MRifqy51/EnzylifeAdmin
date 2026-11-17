@@ -10,9 +10,10 @@ class Batch extends Model
     use HasFactory;
 
     protected $table = 'batches';
-    protected $primaryKey = 'id_batch'; // Primary Key sesuai ERD
-    public $incrementing = false;       // Wajib false karena berupa string teks (VARCHAR)
-    protected $keyType = 'string';      // Tipe data primary key adalah string
+
+    protected $primaryKey = 'id_batch';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'id_batch',

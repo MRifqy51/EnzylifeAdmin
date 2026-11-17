@@ -11,7 +11,7 @@ class KalkulatorSop extends Page
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calculator';
     protected static ?string $navigationLabel = 'Kalkulator & SOP';
     protected static ?string $title = 'Kalkulator Formulasi & SOP Batching';
-    protected static ?int $navigationSort = 2; 
+    protected static ?int $navigationSort = 2;
 
     protected string $view = 'filament.pages.kalkulator-sop';
 
@@ -37,7 +37,7 @@ class KalkulatorSop extends Page
     public function mount(): void
     {
         $this->tanggal_mulai = date('Y-m-d');
-        
+
         // Ambil nama perangkat dari tabel devices agar informatif
         $device = \App\Models\Device::find($this->id_devices);
         $this->nama_perangkat = $device ? $device->name . ' (ID: ' . $device->id . ')' : 'ESP32 Eco Enzyme';
@@ -55,12 +55,12 @@ class KalkulatorSop extends Page
     public function hitungFormulasi()
     {
         $kapasitas = floatval($this->kapasitas_wadah);
-        
+
         // Logika takaran standar rasio 1 : 3 : 10
         $this->air = round($kapasitas * 0.625, 2);
         $this->molase = round($kapasitas * 0.0625, 2);
         $this->sampah_organik = round($kapasitas * 0.1875, 2);
-        
+
         $this->vol_bahan = $this->molase + $this->sampah_organik + $this->air;
         $this->space_aman = round($kapasitas - $this->vol_bahan, 2);
     }

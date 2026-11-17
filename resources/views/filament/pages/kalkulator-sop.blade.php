@@ -1,9 +1,9 @@
 <x-filament-panels::page>
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        
+
         <!-- KOLOM KIRI: FORM INPUT & HASIL KALKULASI -->
         <div class="xl:col-span-7 space-y-6">
-            
+
             <!-- Form Input Batch Baru -->
             <div class="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
                 <div class="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
@@ -15,14 +15,14 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400">Atur parameter dan kapasitas wadah fermentasi</p>
                     </div>
                 </div>
-                
+
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1.5">Nama Batch</label>
                         <input type="text" wire:model="nama_batch" placeholder="Masukkan nama batch (misal: Batch EcoEnzyme #01)" class="w-full px-3.5 py-2.5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/50 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-green-500 text-sm">
                         @error('nama_batch') <span class="text-xs text-red-500 mt-1 block font-medium">{{ $message }}</span> @enderror
                     </div>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1.5">Perangkat IoT Target</label>
@@ -54,7 +54,7 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400">Rekomendasi rasio formula optimal (1 : 3 : 10)</p>
                     </div>
                 </div>
-                
+
                 <div class="grid grid-cols-3 gap-3 mb-5 text-center">
                     <div class="p-4 bg-gradient-to-br from-green-700 to-green-800 text-white rounded-xl shadow-md">
                         <span class="block text-[10px] uppercase tracking-wider font-medium text-green-200 mb-1">Molase</span>

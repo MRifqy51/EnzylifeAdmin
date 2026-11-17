@@ -1,8 +1,8 @@
 #include <WiFi.h>
-#include <WiFiClientSecure.h>    
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <DHT.h>
-#include <OneWire.h>             
+#include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -17,8 +17,8 @@
 #define DHTTYPE DHT22
 #define MQ135_PIN 36
 #define PH_PIN 39
-#define DS18B20_PIN 32 
-#define SD_CS_PIN 5 
+#define DS18B20_PIN 32
+#define SD_CS_PIN 5
 
 // Konfigurasi WiFi & MQTT Sesuai Jaringanmu
 const char* ssid = SECRET_SSID;
@@ -28,7 +28,7 @@ const int mqtt_port = 8883;
 const char* mqtt_user = SECRET_MQTT_USER;
 const char* mqtt_password = SECRET_MQTT_PASS;
 const char* mqtt_topic = "enzylife/device01";
-const char* mqtt_cmd_topic = "enzylife/device01/cmd"; 
+const char* mqtt_cmd_topic = "enzylife/device01/cmd";
 
 // Instansiasi Library
 DHT dht(DHTPIN, DHTTYPE);
@@ -55,22 +55,22 @@ enum SDCardState {
     SD_EJECTED
 };
 SDCardState currentSDState = SD_UNMOUNTED;
-bool sdAvailable = false; 
+bool sdAvailable = false;
 
-bool rtcAvailable = false; 
+bool rtcAvailable = false;
 
 // Non-Blocking Timers
 unsigned long lastSend = 0;
-const unsigned long sendInterval = 5000; 
+const unsigned long sendInterval = 5000;
 
 unsigned long lastSDCheck = 0;
-const unsigned long sdCheckInterval = 10000; 
+const unsigned long sdCheckInterval = 10000;
 
 unsigned long lastWiFiReconnectAttempt = 0;
-const unsigned long wifiReconnectInterval = 10000; 
+const unsigned long wifiReconnectInterval = 10000;
 
 unsigned long lastMQTTReconnectAttempt = 0;
-const unsigned long mqttReconnectInterval = 10000; 
+const unsigned long mqttReconnectInterval = 10000;
 
 // Prototipe Fungsi
 void mountSD();
@@ -79,8 +79,8 @@ void checkSDCard();
 void createCSVIfNeeded();
 void writeLogToSD(String timestamp);
 void callback(char* topic, byte* payload, unsigned int length);
-void connectMQTTNonBlocking(); 
-void handleWiFiReconnectNonBlocking(); 
+void connectMQTTNonBlocking();
+void handleWiFiReconnectNonBlocking();
 void updateLCD();
 String getTimestamp();
 void readPublishAndLogSensor();
@@ -136,17 +136,17 @@ void checkSDCard() {
                 currentSDState = SD_UNMOUNTED;
                 sdAvailable = false;
             } else {
-                testFile.close(); 
+                testFile.close();
             }
-        } 
+        }
         // Jika statusnya UNMOUNTED, ERROR, atau habis di-EJECT lewat tombol web
         else {
             Serial.println("[SD] Auto-Detect: Mencoba menginisialisasi ulang hardware...");
-            
+
             SD.end();                      // Bersihkan sisa register SPI lama
             digitalWrite(SD_CS_PIN, HIGH); // Buang sisa logika tegangan statis pada pin CS
             delay(150);                    // Beri jeda singkat 150ms agar chip memori stabil
-            
+
             if (SD.begin(SD_CS_PIN)) {
                 currentSDState = SD_READY;
                 sdAvailable = true;
@@ -182,15 +182,15 @@ void writeLogToSD(String timestamp) {
 }
 
 // ===== MQTT CALLBACK =====
-void callback(char* topic, byte* payload, unsigned int length) { 
+void callback(char* topic, byte* payload, unsigned int length) {
     String message = "";
-    message.reserve(length + 1); 
+    message.reserve(length + 1);
     for (unsigned int i = 0; i < length; i++) {
         message += (char)payload[i];
     }
     Serial.println("\n[MQTT CMD] Perintah Masuk di Topik: " + String(topic));
     Serial.println("[MQTT CMD] Isi Perintah: " + message);
-    
+
     if (String(topic) == mqtt_cmd_topic) {
         // Menerima perintah Eject dari tombol satu-satunya di website kamu
         if (message == "EJECT_SD") {
@@ -205,15 +205,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void connectMQTTNonBlocking() {
-    if (WiFi.status() != WL_CONNECTED) return; 
-    
+    if (WiFi.status() != WL_CONNECTED) return;
+
     if (millis() - lastMQTTReconnectAttempt >= mqttReconnectInterval) {
         lastMQTTReconnectAttempt = millis();
-        
+
         Serial.print("Connecting to HiveMQ... ");
         String clientId = "ESP32-EnzyLife-";
         clientId += String(random(0xffff), HEX);
-        
+
         if (client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
             Serial.println("Connected");
             client.subscribe(mqtt_cmd_topic);
@@ -239,7 +239,7 @@ void handleWiFiReconnectNonBlocking() {
 void setup() {
     Serial.begin(115200);
     delay(2000);
-    
+
     lcd.init();
     lcd.backlight();
     lcd.setCursor(0, 0);
@@ -249,10 +249,10 @@ void setup() {
     Serial.println("\n=================================");
     Serial.println("   EnzyLife ESP32 FULL SYSTEM");
     Serial.println("=================================");
-    
+
     dht.begin();
     ds18b20.begin();
-    
+
     if (!rtc.begin()) {
         Serial.println("[ERROR] Modul RTC DS3231 Tidak Ditemukan!");
         rtcAvailable = false;
@@ -266,11 +266,11 @@ void setup() {
     unsigned long startTimeout = millis();
     Serial.print("Connecting WiFi: ");
     Serial.println(ssid);
-    while (WiFi.status() != WL_CONNECTED && millis() - startTimeout < 10000) { 
+    while (WiFi.status() != WL_CONNECTED && millis() - startTimeout < 10000) {
         delay(500);
         Serial.print(".");
     }
-    
+
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\nWiFi Connected");
     } else {
@@ -280,7 +280,7 @@ void setup() {
     Serial.print("Jumlah DS18B20 Terdeteksi = ");
     Serial.println(ds18b20.getDeviceCount());
 
-    espClient.setInsecure(); 
+    espClient.setInsecure();
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
 
@@ -293,11 +293,11 @@ void setup() {
 
 void loop() {
     handleWiFiReconnectNonBlocking();
-    
+
     if (WiFi.status() == WL_CONNECTED && !client.connected()) {
         connectMQTTNonBlocking();
     }
-    
+
     client.loop();
     updateLCD();
     checkSDCard(); // Fungsi pemantau otomatis latar belakang berjalan di sini
@@ -321,14 +321,14 @@ void updateLCD() {
 
     lcd.setCursor(0, 0);
     if (page == 0) {
-        lcd.print(getTimestamp().substring(11, 19)); 
+        lcd.print(getTimestamp().substring(11, 19));
         lcd.setCursor(0, 1);
         lcd.print("M:"); lcd.print(client.connected() ? "ON" : "OFF");
         lcd.print(" SD:"); lcd.print(sdAvailable ? "OK" : "NO");
     } else if (page == 1) {
         lcd.print("Udr:"); lcd.print(g_airTemperature, 1); lcd.print("C");
         lcd.setCursor(0, 1);
-        lcd.print("Cai: "); 
+        lcd.print("Cai: ");
         if (g_isDisconnected) lcd.print("---"); else { lcd.print(g_liquidTemperature, 1); lcd.print("C"); }
     } else {
         lcd.print("H:"); lcd.print(g_humidity, 0); lcd.print("% G:"); lcd.print(g_gasRaw);
@@ -339,7 +339,7 @@ void updateLCD() {
 
 String getTimestamp() {
     if (!rtcAvailable) {
-        return "2026-06-30 00:00:00"; 
+        return "2026-06-30 00:00:00";
     }
     DateTime now = rtc.now();
     char buffer[20];
@@ -361,7 +361,7 @@ void readPublishAndLogSensor() {
     int phRaw = 0;
     for (int i = 0; i < 15; i++) {
         phRaw += analogRead(PH_PIN);
-        delay(10); 
+        delay(10);
     }
     phRaw /= 15;
     float phVoltage = (float)phRaw * (3.3 / 4095.0);
@@ -392,9 +392,9 @@ void readPublishAndLogSensor() {
     writeLogToSD(timestamp);
 
     String payload = "{";
-    payload.reserve(256); 
+    payload.reserve(256);
     payload += "\"timestamp\":\"" + timestamp + "\",";
-    payload += "\"device_id\":\"device01\","; 
+    payload += "\"device_id\":\"device01\",";
     payload += "\"sd_available\":" + String(sdAvailable ? "true" : "false") + ",";
     payload += "\"temperature\":" + String(g_airTemperature, 2) + ",";
     if (g_isDisconnected) {

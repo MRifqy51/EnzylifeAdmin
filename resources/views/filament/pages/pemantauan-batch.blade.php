@@ -3,11 +3,11 @@
 
     {{-- 🔥 STICKY ALERT BANNER DENGAN TOMBOL TUTUP (ALPINE.JS) --}}
     @if(!empty($batch['milestoneAlert']))
-        <div x-data="{ show: true }" 
-             x-show="show" 
-             x-transition 
+        <div x-data="{ show: true }"
+             x-show="show"
+             x-transition
              class="sticky top-4 z-40 mb-6 p-4 bg-amber-50 dark:bg-amber-950/90 border-l-4 border-amber-500 rounded-xl shadow-lg backdrop-blur-md flex items-start justify-between gap-3">
-            
+
             <div class="flex items-start gap-3">
                 <div class="text-amber-600 dark:text-amber-400 mt-0.5">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,8 +25,8 @@
             </div>
 
             {{-- Tombol Tutup / Dismiss (UX Friendly) --}}
-            <button @click="show = false" 
-                    class="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition p-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50" 
+            <button @click="show = false"
+                    class="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition p-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50"
                     title="Tutup Peringatan">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -34,9 +34,9 @@
             </button>
         </div>
     @endif
- 
+
     <div class="batch-card">
- 
+
         {{-- Top row --}}
         <div class="batch-card__header">
             <div>
@@ -45,7 +45,7 @@
             </div>
             <span class="batch-card__badge">✦ {{ $batch['status'] }}</span>
         </div>
- 
+
         {{-- Progress bar --}}
         <div class="batch-card__progress-wrap">
             <span class="batch-card__progress-label">Progres Fermentasi</span>
@@ -54,14 +54,14 @@
         <div class="batch-card__progress-track">
             <div class="batch-card__progress-fill" style="width: {{ $batch['progress'] }}%"></div>
         </div>
- 
+
         {{-- Radar + Stats --}}
         <div class="batch-card__body">
             {{-- Radar chart --}}
             <div class="batch-card__radar-wrap">
                 <canvas id="radarChart" width="180" height="180"></canvas>
             </div>
- 
+
             {{-- Stats --}}
             <div class="batch-card__stats">
                 <div class="batch-card__stat">
@@ -86,7 +86,7 @@
                 </div>
             </div>
         </div>
- 
+
         {{-- Footer --}}
         <div class="batch-card__footer">
             <span class="batch-card__footer-meta">
@@ -136,7 +136,7 @@
             @endforeach
         </div>
     </div>
- 
+
     {{-- ══════════════════════════════════════════════════════
          FILTER BY DATE RANGE
     ══════════════════════════════════════════════════════ --}}
@@ -147,7 +147,7 @@
             </svg>
             Filter Berdasarkan Rentang Tanggal
         </div>
- 
+
         <div class="filter-card__row">
             <div class="filter-card__field">
                 <label class="filter-card__label">Tanggal Mulai</label>
@@ -182,7 +182,7 @@
             </div>
         </div>
     </div>
- 
+
     {{-- ══════════════════════════════════════════════════════
          SENSOR READINGS TABLE
     ══════════════════════════════════════════════════════ --}}
@@ -190,12 +190,12 @@
         $readings   = $this->getSensorReadings();
         $totalCount = $this->getTotalCount();
     @endphp
- 
+
     <div class="table-card">
         <div class="table-card__header">
             <span class="table-card__title">Riwayat Pembacaan Sensor</span>
         </div>
- 
+
         <div class="table-card__wrap">
             <table class="sensor-table">
                 <thead>
@@ -226,12 +226,12 @@
                 </tbody>
             </table>
         </div>
- 
+
         <div class="table-card__footer">
             Menampilkan {{ $readings->count() }} dari total {{ $totalCount }} data. Ekspor ke CSV untuk mengunduh seluruh data.
         </div>
     </div>
- 
+
     {{-- ══════════════════════════════════════════════════════
          CHART.JS RADAR
     ══════════════════════════════════════════════════════ --}}
@@ -240,12 +240,12 @@
     <script>
         document.addEventListener('livewire:navigated', initRadar);
         document.addEventListener('DOMContentLoaded',   initRadar);
- 
+
         function initRadar() {
             const canvas = document.getElementById('radarChart');
             if (!canvas) return;
             if (canvas._chartInstance) { canvas._chartInstance.destroy(); }
- 
+
             const radar = @json($batch['radar']);
             canvas._chartInstance = new Chart(canvas, {
                 type: 'radar',
