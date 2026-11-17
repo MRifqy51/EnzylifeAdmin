@@ -10,9 +10,12 @@ class Batch extends Model
     use HasFactory;
 
     protected $table = 'batches';
-    protected $primaryKey = 'id_batch'; // Menyesuaikan primary key dari ERD[cite: 3]
-    
+    protected $primaryKey = 'id_batch'; // Primary Key sesuai ERD
+    public $incrementing = false;       // Wajib false karena berupa string teks (VARCHAR)
+    protected $keyType = 'string';      // Tipe data primary key adalah string
+
     protected $fillable = [
+        'id_batch',
         'id_devices',
         'nama_batch',
         'tanggal_mulai',
@@ -23,7 +26,7 @@ class Batch extends Model
         'status',
     ];
 
-    // Relasi opsional ke Device (jika diperlukan)
+    // Relasi opsional ke Device
     public function device()
     {
         return $this->belongsTo(Device::class, 'id_devices', 'id_devices');

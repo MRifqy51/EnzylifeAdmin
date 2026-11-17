@@ -17,6 +17,7 @@ class KalkulatorSop extends Page
 
     public $nama_batch = '';
     public $id_devices = 1;
+    public $nama_perangkat = '';
     public $tanggal_mulai;
     public $kapasitas_wadah = null;
 
@@ -36,6 +37,10 @@ class KalkulatorSop extends Page
     public function mount(): void
     {
         $this->tanggal_mulai = date('Y-m-d');
+        
+        // Ambil nama perangkat dari tabel devices agar informatif
+        $device = \App\Models\Device::find($this->id_devices);
+        $this->nama_perangkat = $device ? $device->name . ' (ID: ' . $device->id . ')' : 'ESP32 Eco Enzyme';
     }
 
     public function updatedKapasitasWadah()
@@ -78,11 +83,11 @@ class KalkulatorSop extends Page
             'tanggal_mulai'   => 'required|date',
             'kapasitas_wadah' => 'required|numeric|min:1',
         ], [
-            'nama_batch.required'      => 'Nama batch wajib diisi!',
-            'nama_batch.min'           => 'Nama batch minimal 3 karakter.',
-            'kapasitas_wadah.required' => 'Kapasitas wadah wajib diisi!',
-            'kapasitas_wadah.min'      => 'Kapasitas wadah harus lebih besar dari 0 Liter!',
-            'kapasitas_wadah.numeric'  => 'Kapasitas wadah harus berupa angka!',
+            'nama_batch.required'     => 'Nama batch wajib diisi!',
+            'nama_batch.min'          => 'Nama batch minimal 3 karakter.',
+            'kapasitas_wadah.required'=> 'Kapasitas wadah wajib diisi!',
+            'kapasitas_wadah.min'     => 'Kapasitas wadah harus lebih besar dari 0 Liter!',
+            'kapasitas_wadah.numeric' => 'Kapasitas wadah harus berupa angka!',
         ]);
 
         // 2. Validasi SOP Interaktif (Wajib dicentang semua sebelum disimpan)
@@ -97,11 +102,16 @@ class KalkulatorSop extends Page
 
         $this->hitungFormulasi();
 
-        // 3. Nonaktifkan batch lama jika ada (agar hanya ada 1 batch aktif)
+        // 3. GENERATE ID BATCH OTOMATIS (Contoh: ECO-1, ECO-2, dst.)
+        $totalBatch = Batch::count() + 1;
+        $generatedIdBatch = 'ECO-' . $totalBatch;
+
+        // 4. Nonaktifkan batch lama jika ada (agar hanya ada 1 batch aktif)
         Batch::where('id_devices', $this->id_devices)->update(['status' => 'Completed']);
 
-        // 4. Simpan batch baru ke database
+        // 5. Simpan batch baru ke database dengan id_batch custom
         Batch::create([
+            'id_batch'        => $generatedIdBatch,
             'id_devices'      => $this->id_devices,
             'nama_batch'      => $this->nama_batch,
             'tanggal_mulai'   => $this->tanggal_mulai,
@@ -114,11 +124,11 @@ class KalkulatorSop extends Page
 
         Notification::make()
             ->title('Berhasil!')
-            ->body('SOP tuntas diverifikasi & batch baru sukses disimpan ke database.')
+            ->body('Batch (' . $generatedIdBatch . ') sukses disimpan ke database.')
             ->success()
             ->send();
 
-        // 5. Reset Form dan Checklist setelah berhasil submit
+        // 6. Reset Form dan Checklist setelah berhasil submit
         $this->reset(['nama_batch', 'kapasitas_wadah']);
         $this->resetKalkulasi();
         $this->sop_steps = [1 => false, 2 => false, 3 => false, 4 => false];
