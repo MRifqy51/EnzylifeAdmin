@@ -38,20 +38,23 @@ class PemantauanBatch extends Page
         $activeBatch = \App\Models\Batch::where('status', 'Active')->latest('created_at')->first();
 
         if ($activeBatch) {
-            $startDate = Carbon::parse($activeBatch->tanggal_mulai);
+            $startDate = Carbon::parse($activeBatch->tanggal_mulai)->startOfDay();
             $batchName = $activeBatch->nama_batch;
             $volume = $activeBatch->kapasitas_wadah . 'L';
+            $batchCode = $activeBatch->id_batch;
         } else {
-            $startDate = Carbon::parse('2026-07-11');
+            $startDate = Carbon::parse('2026-07-11')->startOfDay();
             $batchName = 'Fermentasi Eco Enzyme';
             $volume = '5L';
+            $batchCode = 'ECO-01';
         }
 
+        $today = Carbon::now()->startOfDay();
         $totalDaysNeeded = 90;
-        $daysPassed = max(0, $startDate->diffInDays(now()));
+        $daysPassed = max(0, $startDate->diffInDays($today));
         $progress = round(min(100, ($daysPassed / $totalDaysNeeded) * 100));
 
-        // 🔥 Logika Deteksi Milestone untuk Banner Alert
+        // 🔥 Logika Deteksi Milestone untuk Banner Alert Sticky
         $milestoneAlert = null;
         if ($daysPassed == 7) {
             $milestoneAlert = "PENTING: Hari ini adalah Milestone Hari ke-7 (Jadwal Panen Gas / Pelepasan Tekanan Wadah)! Pastikan pengecekan tekanan wadah dilakukan.";
@@ -61,7 +64,6 @@ class PemantauanBatch extends Page
             $milestoneAlert = "SELAMAT: Batch telah mencapai Hari ke-90+. Fermentasi siap dipanen (Panen Utama Eco Enzyme)!";
         }
 
-        // 🔥 Data untuk Tracking Milestone Visual
         $milestones = [
             [
                 'day' => 7,
@@ -85,12 +87,12 @@ class PemantauanBatch extends Page
 
         return [
             'name'           => $batchName,
-            'code'           => 'ECO-V-' . sprintf('%02d', $activeBatch?->id_batch ?? 1),
+            'code'           => $batchCode,
             'status'         => 'AKTIF',
             'progress'       => $progress,
-            'daysPassed'     => $daysPassed,      // <--- Kunci yang dicari view
-            'milestoneAlert' => $milestoneAlert,  // <--- Kunci untuk alert
-            'milestones'     => $milestones,      // <--- Kunci untuk kotak tracking milestone
+            'daysPassed'     => $daysPassed,
+            'milestoneAlert' => $milestoneAlert,
+            'milestones'     => $milestones,
 
             'ph'       => $latestSensor?->ph ?? '—',
             'air_temp' => $latestSensor?->temperature ?? '—',
@@ -111,43 +113,24 @@ class PemantauanBatch extends Page
         ];
     }
 
-    // 🔥 Sensor table
     public function getSensorReadings(): Collection
     {
         $q = Sensor::query()->latest('created_at');
-
-        if ($this->startDate) {
-            $q->whereDate('created_at', '>=', $this->startDate);
-        }
-
-        if ($this->endDate) {
-            $q->whereDate('created_at', '<=', $this->endDate);
-        }
-
+        if ($this->startDate) { $q->whereDate('created_at', '>=', $this->startDate); }
+        if ($this->endDate) { $q->whereDate('created_at', '<=', $this->endDate); }
         return $q->take($this->perPage)->get();
     }
 
     public function getTotalCount(): int
     {
         $q = Sensor::query();
-
-        if ($this->startDate) {
-            $q->whereDate('created_at', '>=', $this->startDate);
-        }
-
-        if ($this->endDate) {
-            $q->whereDate('created_at', '<=', $this->endDate);
-        }
-
+        if ($this->startDate) { $q->whereDate('created_at', '>=', $this->startDate); }
+        if ($this->endDate) { $q->whereDate('created_at', '<=', $this->endDate); }
         return $q->count();
     }
 
-    public function applyFilter(): void
-    {
-        // Livewire auto refresh
-    }
+    public function applyFilter(): void {}
 
-    // 🔥 Export CSV
     public function exportCsv(): StreamedResponse
     {
         $rows = $this->getSensorReadings();
@@ -155,7 +138,6 @@ class PemantauanBatch extends Page
         return response()->streamDownload(function () use ($rows) {
             $h = fopen('php://output', 'w');
 
-            // Header kolom CSV Bahasa Indonesia
             fputcsv($h, [
                 'Waktu (Timestamp)',
                 'Tingkat pH',
@@ -165,7 +147,6 @@ class PemantauanBatch extends Page
                 'Kelembapan (%)'
             ]);
 
-            // Data sensor
             foreach ($rows as $r) {
                 fputcsv($h, [
                     Carbon::parse($r->created_at)->format('d M Y, H:i'),
@@ -177,32 +158,15 @@ class PemantauanBatch extends Page
                 ]);
             }
 
-
             fclose($h);
         }, 'log-sensor-eco-enzyme-' . now()->format('Y-m-d') . '.csv');
     }
-
-    // 🔥 Export PDF (Dipisah menjadi method tersendiri di luar exportCsv)
     public function exportPdf()
     {
-        // 1. Ambil data batch aktif/terbaru dari database batches
         $batchInfo = \App\Models\Batch::latest('tanggal_mulai')->first();
-
-        // 2. Ambil data sensor berdasarkan filter tanggal (sama seperti CSV)
         $readings = $this->getSensorReadings();
-
-        // 3. Load view khusus untuk cetak PDF (Tambahkan tanda $ pada $pdf)
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.laporan-batch', [
-            'batchInfo' => $batchInfo,
-            'readings'  => $readings,
-            'startDate' => $this->startDate,
-            'endDate'   => $this->endDate,
-        ]);
-
-        // 4. Download file PDF ke browser
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, 'laporan-batch-eco-enzyme-' . now()->format('Y-m-d') . '.pdf');
+        $pdf = Pdf::loadView('pdf.laporan-batch', ['batchInfo' => $batchInfo, 'readings' => $readings, 'startDate' => $this->startDate, 'endDate' => $this->endDate]);
+        return response()->streamDownload(function () use ($pdf) { echo $pdf->output(); }, 'laporan-batch-eco-enzyme-' . now()->format('Y-m-d') . '.pdf');
     }
 
 }

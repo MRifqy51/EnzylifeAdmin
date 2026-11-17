@@ -26,7 +26,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1.5">Perangkat IoT Target</label>
-                            <input type="text" wire:model="id_devices" readonly class="w-full px-3.5 py-2.5 border rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 text-sm cursor-not-allowed">
+                            <input type="text" wire:model="nama_perangkat" readonly class="w-full px-3.5 py-2.5 border rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 text-sm cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1.5">Tanggal Mulai</label>
