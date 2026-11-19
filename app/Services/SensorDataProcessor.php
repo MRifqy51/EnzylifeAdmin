@@ -168,23 +168,34 @@ class SensorDataProcessor
      * atau null jika seluruh field valid.
      */
     public function validateRequiredFields(
-        array $data
-    ): ?string {
-        $requiredFields = [
-            'ph',
-            'liquid_temperature',
-            'temperature',
-        ];
+    array $data
+): ?string {
 
-        foreach ($requiredFields as $field) {
-            if (
-                !array_key_exists($field, $data) ||
-                $this->toFiniteFloat($data[$field]) === null
-            ) {
-                return $field;
-            }
+    $requiredFields = [
+        'ph',
+        'liquid_temperature',
+        'temperature',
+    ];
+
+    foreach ($requiredFields as $field) {
+
+        if (!array_key_exists($field, $data)) {
+            return $field;
         }
 
-        return null;
+        // Izinkan suhu cairan null jika DS18B20 terputus
+        if (
+            $field === 'liquid_temperature' &&
+            $data[$field] === null
+        ) {
+            continue;
+        }
+
+        if ($this->toFiniteFloat($data[$field]) === null) {
+            return $field;
+        }
+    }
+
+    return null;
     }
 }

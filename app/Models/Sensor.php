@@ -31,6 +31,9 @@ class Sensor extends Model
           // Status Z-Score setiap parameter
         'ph_status',
         'temp_status',
+
+        'reading_id',    // ID unik setiap pembacaan sensor
+        'recorded_at',   // Waktu asli pembacaan ESP32
     ];
 
     protected $casts = [
@@ -39,6 +42,7 @@ class Sensor extends Model
         'temp_raw' => 'float',
         'z_score_ph' => 'float',
         'z_score_temp' => 'float',
+        'recorded_at' => 'datetime',
     ];
 
     public function device()

@@ -50,6 +50,8 @@ class MqttListener extends Command
 
         // Topik ESP32 EnzyLife.
         $topic = 'enzylife/device01';
+        // Topik konfirmasi data yang telah tersimpan
+        $ackTopic = 'enzylife/device01/ack';
 
         // Konfigurasi koneksi MQTT.
         $settings = (new ConnectionSettings)
@@ -106,7 +108,7 @@ class MqttListener extends Command
             function (
                 string $topic,
                 string $message
-            ) use ($sensorDataProcessor) {
+            ) use ($sensorDataProcessor, $mqtt, $ackTopic) {
 
                 try {
 
@@ -157,6 +159,49 @@ class MqttListener extends Command
                     $this->info(
                         'Valid MQTT sensor data received.'
                     );
+                    // ==================================
+                    // 5A. PEMERIKSAAN DUPLIKASI DATA
+                    // ==================================
+
+                    $readingId = $data['reading_id'] ?? null;
+
+                    if ($readingId !== null) {
+
+                        if (
+                            !is_string($readingId) ||
+                            trim($readingId) === '' ||
+                            strlen($readingId) > 100
+                        ) {
+                            $this->warn('Invalid reading_id.');
+                            return;
+                        }
+
+                        $readingId = trim($readingId);
+
+                        $alreadyExists = Sensor::where(
+                            'reading_id',
+                            $readingId
+                        )->exists();
+
+                        if ($alreadyExists) {
+                            $this->info(
+                                'Duplicate sensor reading skipped: ' . $readingId
+                            );
+
+                            // Data sudah tersimpan sebelumnya.
+                            // Kirim ACK kembali agar ESP32 tidak mengulang terus.
+                            $mqtt->publish(
+                                $ackTopic,
+                                json_encode([
+                                    'reading_id' => $readingId,
+                                    'status' => 'saved',
+                                ], JSON_THROW_ON_ERROR),
+                                1
+                            );
+
+                            return;
+                        }
+                    }
 
                     // ==================================
                     // 6. UPDATE STATUS SD CARD
@@ -224,6 +269,12 @@ class MqttListener extends Command
                     // ==================================
 
                     $sensor = Sensor::create([
+                         'reading_id' => $readingId,
+
+                        'recorded_at' => isset($data['timestamp'])
+                            && is_string($data['timestamp'])
+                            ? $data['timestamp']
+                            : null,
 
                         'device_id' => $deviceId,
 
@@ -287,6 +338,26 @@ class MqttListener extends Command
                         'Data saved to database. Sensor ID: '
                         . $sensor->id
                     );
+                    // ==================================
+                    // KONFIRMASI PENYIMPANAN DATA (ACK)
+                    // ==================================
+
+                    if ($readingId !== null) {
+                        $ackPayload = json_encode([
+                            'reading_id' => $readingId,
+                            'status' => 'saved',
+                        ], JSON_THROW_ON_ERROR);
+
+                        $mqtt->publish(
+                            $ackTopic,
+                            $ackPayload,
+                            1
+                        );
+
+                        $this->info(
+                            'ACK sent for reading_id: ' . $readingId
+                        );
+                    }
 
                     // ==================================
                     // 9. PEMBARUAN DATA DASHBOARD
@@ -340,7 +411,7 @@ class MqttListener extends Command
                 }
 
             },
-            0
+         1
         );
 
         // ==========================================
