@@ -11,14 +11,24 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
-
+use PhpMqtt\Client\Contracts\MqttClient as MqttClientContract;
 class MqttListener extends Command
 {
     protected $signature = 'mqtt:listen';
 
     protected $description =
         'Listen MQTT data from HiveMQ and save to database';
-
+    protected function createClient(
+    string $server,
+    int $port,
+    string $clientId
+): MqttClientContract {
+    return new MqttClient(
+        $server,
+        $port,
+        $clientId
+    );
+}
     /**
      * Menjalankan MQTT Listener EnzyLife.
      */
@@ -64,11 +74,11 @@ class MqttListener extends Command
             ->setReconnectAutomatically(true);
 
         // Membuat MQTT Client.
-        $mqtt = new MqttClient(
-            $server,
-            $port,
-            $clientId
-        );
+        $mqtt = $this->createClient(
+        $server,
+        $port,
+        $clientId
+    );
 
         $this->info('Connecting to HiveMQ...');
 
