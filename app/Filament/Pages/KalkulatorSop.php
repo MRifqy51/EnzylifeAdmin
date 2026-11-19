@@ -56,12 +56,19 @@ class KalkulatorSop extends Page
     {
         $kapasitas = floatval($this->kapasitas_wadah);
 
-        // Logika takaran standar rasio 1 : 3 : 10
-        $this->air = round($kapasitas * 0.625, 2);
-        $this->molase = round($kapasitas * 0.0625, 2);
-        $this->sampah_organik = round($kapasitas * 0.1875, 2);
+        // 1. Alokasikan 80% dari kapasitas wadah untuk total campuran bahan cair & padat
+        // (20% sisanya disisakan sebagai ruang udara / headspace aman)
+        $vol_efektif = $kapasitas * 0.80; 
 
-        $this->vol_bahan = $this->molase + $this->sampah_organik + $this->air;
+        // 2. Hitung tiap bahan berdasarkan Rasio Baku 1 : 3 : 10 (Total 14 bagian)
+        $this->molase         = round(($vol_efektif * 1) / 14, 2);  // 1/14 bagian
+        $this->sampah_organik = round(($vol_efektif * 3) / 14, 2);  // 3/14 bagian
+        $this->air            = round(($vol_efektif * 10) / 14, 2); // 10/14 bagian
+
+        // 3. Total volume bahan yang dimasukkan
+        $this->vol_bahan = round($this->molase + $this->sampah_organik + $this->air, 2);
+        
+        // 4. Hitung sisa ruang aman (ruang udara headspace 20%)
         $this->space_aman = round($kapasitas - $this->vol_bahan, 2);
     }
 
