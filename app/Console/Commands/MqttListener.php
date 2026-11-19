@@ -2,33 +2,144 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Sensor;
+use App\Models\Alert;
 use App\Models\Device;
-use App\Services\ZScoreService;
+use App\Models\Sensor;
+use App\Models\Setting;
 use App\Services\SensorDataProcessor;
+use App\Services\ZScoreService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
-use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\Contracts\MqttClient as MqttClientContract;
+use PhpMqtt\Client\MqttClient;
+
 class MqttListener extends Command
 {
     protected $signature = 'mqtt:listen';
 
     protected $description =
         'Listen MQTT data from HiveMQ and save to database';
+
     protected function createClient(
-    string $server,
-    int $port,
-    string $clientId
-): MqttClientContract {
-    return new MqttClient(
-        $server,
-        $port,
-        $clientId
-    );
-}
+        string $server,
+        int $port,
+        string $clientId
+    ): MqttClientContract {
+        return new MqttClient(
+            $server,
+            $port,
+            $clientId
+        );
+    }
+
+    /**
+     * Mengevaluasi threshold semua sensor terhadap tabel settings:
+     * - Membuat alert aktif jika di luar rentang [min, max]
+     * - Menutup alert aktif (set resolved_at) & mencatat nilai saat kembali normal
+     */
+    protected function evaluateSensorThresholds(Sensor $sensor): void
+    {
+        $setting = Setting::first();
+
+        if (!$setting) {
+            return;
+        }
+
+        $parameters = [
+            'ph' => [
+                'value' => $sensor->ph,
+                'label' => 'pH',
+                'unit' => '',
+            ],
+            'temperature' => [
+                'value' => $sensor->temperature,
+                'label' => 'Suhu Udara',
+                'unit' => ' °C',
+            ],
+            'liquid_temperature' => [
+                'value' => $sensor->liquid_temperature,
+                'label' => 'Suhu Cairan',
+                'unit' => ' °C',
+            ],
+            'gas' => [
+                'value' => $sensor->gas,
+                'label' => 'Gas',
+                'unit' => '',
+            ],
+            'humidity' => [
+                'value' => $sensor->humidity,
+                'label' => 'Kelembapan',
+                'unit' => '%',
+            ],
+        ];
+
+        foreach ($parameters as $key => $meta) {
+            $rawValue = $meta['value'];
+
+            if ($rawValue === null || !is_numeric($rawValue) || !is_finite((float) $rawValue)) {
+                continue;
+            }
+
+            $value = (float) $rawValue;
+            $min = $setting->{$key . '_min'};
+            $max = $setting->{$key . '_max'};
+
+            if ($min === null && $max === null) {
+                continue;
+            }
+
+            $belowMin = $min !== null && $value < (float) $min;
+            $aboveMax = $max !== null && $value > (float) $max;
+            $outOfRange = $belowMin || $aboveMax;
+            $alertType = 'threshold_' . $key;
+
+            $activeQuery = Alert::query()
+                ->where('type', $alertType)
+                ->whereNull('resolved_at')
+                ->whereHas('sensor', function ($q) use ($sensor) {
+                    $q->where('device_id', $sensor->device_id);
+                });
+
+            if ($outOfRange) {
+                if (!(clone $activeQuery)->exists()) {
+                    $detail = $belowMin
+                        ? "terlalu rendah (di bawah batas min {$min}{$meta['unit']})"
+                        : "terlalu tinggi (melebihi batas max {$max}{$meta['unit']})";
+
+                    Alert::create([
+                        'sensor_id' => $sensor->id,
+                        'type' => $alertType,
+                        'message' => "{$meta['label']} ({$value}{$meta['unit']}) {$detail}.",
+                        'level' => 'warning',
+                        'resolved_at' => null,
+                    ]);
+
+                    $this->warn("Alert threshold dibuat: {$alertType} ({$value})");
+                }
+            } else {
+                $openAlerts = (clone $activeQuery)->get();
+
+                if ($openAlerts->isNotEmpty()) {
+                    $now = now();
+
+                    foreach ($openAlerts as $openAlert) {
+                        $updatedMessage = rtrim($openAlert->message, '.')
+                            . " — Kembali normal di {$value}{$meta['unit']}.";
+
+                        $openAlert->update([
+                            'message' => $updatedMessage,
+                            'resolved_at' => $now,
+                        ]);
+                    }
+
+                    $this->info("Alert threshold selesai: {$alertType} kembali normal ({$value})");
+                }
+            }
+        }
+    }
+
     /**
      * Menjalankan MQTT Listener EnzyLife.
      */
@@ -75,10 +186,10 @@ class MqttListener extends Command
 
         // Membuat MQTT Client.
         $mqtt = $this->createClient(
-        $server,
-        $port,
-        $clientId
-    );
+            $server,
+            $port,
+            $clientId
+        );
 
         $this->info('Connecting to HiveMQ...');
 
@@ -92,9 +203,7 @@ class MqttListener extends Command
             $this->info(
                 'Connected. Listening topic: ' . $topic
             );
-
         } catch (\Throwable $e) {
-
             $this->error(
                 'MQTT connection failed: ' . $e->getMessage()
             );
@@ -119,9 +228,7 @@ class MqttListener extends Command
                 string $topic,
                 string $message
             ) use ($sensorDataProcessor, $mqtt, $ackTopic) {
-
                 try {
-
                     // ==================================
                     // 5. DECODE DAN VALIDASI JSON
                     // ==================================
@@ -150,7 +257,6 @@ class MqttListener extends Command
                         ->validateRequiredFields($data);
 
                     if ($invalidField !== null) {
-
                         $this->warn(
                             "Invalid or missing MQTT field: {$invalidField}"
                         );
@@ -169,6 +275,7 @@ class MqttListener extends Command
                     $this->info(
                         'Valid MQTT sensor data received.'
                     );
+
                     // ==================================
                     // 5A. PEMERIKSAAN DUPLIKASI DATA
                     // ==================================
@@ -176,7 +283,6 @@ class MqttListener extends Command
                     $readingId = $data['reading_id'] ?? null;
 
                     if ($readingId !== null) {
-
                         if (
                             !is_string($readingId) ||
                             trim($readingId) === '' ||
@@ -223,14 +329,12 @@ class MqttListener extends Command
                     $device = Device::find($deviceId);
 
                     if ($device) {
-
                         // Perbarui status hanya jika ESP32
                         // benar-benar mengirim field sd_available.
                         if (
                             array_key_exists('sd_available', $data) &&
                             is_bool($data['sd_available'])
                         ) {
-
                             $sdAvailable = $data['sd_available'];
 
                             $newStatus = $sdAvailable
@@ -246,9 +350,7 @@ class MqttListener extends Command
                             $this->info(
                                 'SD Card status updated to: ' . $newStatus
                             );
-
                         } else {
-
                             // Tidak ada informasi status yang valid.
                             // Jangan menganggap MicroSD terputus.
                             $this->warn(
@@ -284,7 +386,7 @@ class MqttListener extends Command
                     // ==================================
 
                     $sensor = Sensor::create([
-                         'reading_id' => $readingId,
+                        'reading_id' => $readingId,
 
                         'recorded_at' => isset($data['timestamp'])
                             && is_string($data['timestamp'])
@@ -332,27 +434,14 @@ class MqttListener extends Command
                         'temp_status' => $tempStatus,
                     ]);
 
-                    /*
-                     * Sensor::create() juga akan
-                     * memicu SensorObserver jika
-                     * observer sudah terdaftar.
-                     *
-                     * SensorObserver menangani:
-                     * - Alert Z-Score
-                     * - Alert threshold
-                     * - Cooldown WhatsApp
-                     * - Status alert aktif
-                     * - Penyelesaian alert
-                     */
-
-                    // Data historis tidak dihapus
-                    // agar tetap tersedia untuk
-                    // monitoring dan perhitungan Z-Score.
+                    // Evaluasi batas threshold semua sensor & auto-resolve jika normal
+                    $this->evaluateSensorThresholds($sensor);
 
                     $this->info(
                         'Data saved to database. Sensor ID: '
                         . $sensor->id
                     );
+
                     // ==================================
                     // KONFIRMASI PENYIMPANAN DATA (ACK)
                     // ==================================
@@ -386,13 +475,7 @@ class MqttListener extends Command
                     $this->info(
                         'Sensor update event dispatched.'
                     );
-
-                    // ==================================
-                    // 10. PENANGANAN JSON TIDAK VALID
-                    // ==================================
-
                 } catch (\JsonException $e) {
-
                     $this->warn(
                         'Payload MQTT memiliki format JSON tidak valid.'
                     );
@@ -404,13 +487,7 @@ class MqttListener extends Command
                             'error' => $e->getMessage(),
                         ]
                     );
-
-                    // ==================================
-                    // 11. PENANGANAN ERROR PEMROSESAN
-                    // ==================================
-
                 } catch (\Throwable $e) {
-
                     $this->error(
                         'MQTT message processing error: '
                         . $e->getMessage()
@@ -424,9 +501,8 @@ class MqttListener extends Command
                         ]
                     );
                 }
-
             },
-         1
+            1
         );
 
         // ==========================================
@@ -438,11 +514,8 @@ class MqttListener extends Command
         );
 
         try {
-
             $mqtt->loop(true, true);
-
         } catch (\Throwable $e) {
-
             $this->error(
                 'MQTT listener stopped: '
                 . $e->getMessage()
