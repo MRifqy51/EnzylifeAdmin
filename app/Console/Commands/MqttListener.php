@@ -217,39 +217,44 @@ class MqttListener extends Command
                     // 6. UPDATE STATUS SD CARD
                     // ==================================
 
-                    $sdAvailable = $data['sd_available'] ?? false;
-
-                    // Saat ini EnzyLife menggunakan
-                    // perangkat dengan ID 1.
+                    // Saat ini EnzyLife menggunakan Device ID 1.
                     $deviceId = 1;
 
                     $device = Device::find($deviceId);
 
                     if ($device) {
 
-                        $currentStatus = $device->sd_status;
-
+                        // Perbarui status hanya jika ESP32
+                        // benar-benar mengirim field sd_available.
                         if (
-                            !$sdAvailable &&
-                            $currentStatus === 'CONNECTED'
+                            array_key_exists('sd_available', $data) &&
+                            is_bool($data['sd_available'])
                         ) {
-                            $newStatus = 'EJECTED';
 
-                        } else {
+                            $sdAvailable = $data['sd_available'];
 
                             $newStatus = $sdAvailable
                                 ? 'CONNECTED'
                                 : 'DISCONNECTED';
+
+                            if ($device->sd_status !== $newStatus) {
+                                $device->update([
+                                    'sd_status' => $newStatus,
+                                ]);
+                            }
+
+                            $this->info(
+                                'SD Card status updated to: ' . $newStatus
+                            );
+
+                        } else {
+
+                            // Tidak ada informasi status yang valid.
+                            // Jangan menganggap MicroSD terputus.
+                            $this->warn(
+                                'SD Card status not provided. Keeping previous status.'
+                            );
                         }
-
-                        $device->update([
-                            'sd_status' => $newStatus,
-                        ]);
-
-                        $this->info(
-                            'SD Card status updated to: '
-                            . $newStatus
-                        );
                     }
 
                     // ==================================

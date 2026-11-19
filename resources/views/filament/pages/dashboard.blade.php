@@ -168,34 +168,8 @@
                                     </span>
                                 </div>
 
-                                <p class="text-sm mt-2">
-                                    @switch($alert['type'])
-
-                                        @case('zscore_ph')
-                                            Terdeteksi perubahan nilai pH yang tidak biasa.
-                                            Silakan periksa kondisi sensor dan cairan fermentasi.
-                                            @break
-
-                                        @case('zscore_liquid_temperature')
-                                            Terdeteksi perubahan suhu cairan yang tidak biasa.
-                                            Silakan periksa kondisi sensor dan cairan fermentasi.
-                                            @break
-
-                                        @case('threshold_ph')
-                                            Nilai pH berada di luar batas yang telah ditentukan.
-                                            Silakan periksa kondisi cairan fermentasi.
-                                            @break
-
-                                        @case('threshold_liquid_temperature')
-                                            Suhu cairan berada di luar batas yang telah ditentukan.
-                                            Silakan periksa kondisi fermentasi.
-                                            @break
-
-                                        @default
-                                            {{ $alert['message'] }}
-
-                                    @endswitch
-                                </p>
+                                {{-- Menampilkan pesan alert asli beserta saran tindakan --}}
+                                <p class="text-sm mt-2 whitespace-pre-line break-words">{{ $alert['message'] }}</p>
 
 
                                 @if(!empty($alert['resolved_at']))
@@ -211,7 +185,7 @@
                     </div>
                 @else
                     <div class="p-4 rounded-lg bg-gray-50 border border-gray-200
-                        text-gray-600 dark:bg-gray-700/30 dark:border-gray-600
+                        dark:bg-gray-700/30 dark:border-gray-600
                         dark:text-gray-300">
                         Belum ada riwayat peringatan yang tercatat.
                     </div>

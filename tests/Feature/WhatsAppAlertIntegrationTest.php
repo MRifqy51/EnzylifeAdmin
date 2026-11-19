@@ -437,3 +437,55 @@ test('anomali ph tidak menghalangi threshold suhu cairan', function () {
     // Hanya threshold suhu memicu WhatsApp.
     Http::assertSentCount(1);
 });
+/**
+ * TEST 10
+ * Saran tindakan tersimpan di alert
+ * dan ikut dikirim melalui WhatsApp.
+ */
+test('alert threshold menyertakan saran tindakan pada dashboard dan whatsapp', function () {
+
+    setupEnzylifeWhatsAppFake();
+    setupEnzylifeTestThresholds();
+
+    $device = Device::factory()->create();
+
+    // Simulasi pH melebihi threshold,
+    // tetapi hasil Z-Score dinyatakan normal.
+    Sensor::create(
+        enzylifeSensorData($device->id, [
+            'ph' => 4.5,
+            'ph_raw' => 4.5,
+            'z_score_ph' => 0.5,
+            'ph_status' => 'normal',
+        ])
+    );
+
+    $alert = Alert::first();
+
+    // Pastikan alert berhasil dibuat.
+    expect($alert)->not->toBeNull();
+    expect($alert->type)->toBe('threshold_ph');
+    expect($alert->level)->toBe('danger');
+
+    // Pesan yang dibaca dashboard
+    // harus berisi rekomendasi tindakan.
+    expect($alert->message)
+        ->toContain('Saran:')
+        ->toContain('Pantau proses fermentasi');
+
+    // Pastikan saran juga ikut dikirim
+    // melalui simulasi Fonnte.
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://api.fonnte.com/send'
+            && str_contains(
+                (string) $request['message'],
+                'Saran:'
+            )
+            && str_contains(
+                (string) $request['message'],
+                'Pantau proses fermentasi'
+            );
+    });
+
+    Http::assertSentCount(1);
+});

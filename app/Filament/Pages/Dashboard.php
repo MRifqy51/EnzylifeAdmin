@@ -61,7 +61,10 @@ class Dashboard extends Page
 
         // Memeriksa alert aktif untuk perangkat yang sedang ditampilkan.
         $activeAlerts = Alert::query()
-            ->whereNotNull('type')
+            ->whereIn('type', [
+            'threshold_ph',
+            'threshold_liquid_temperature',
+            ])
             ->whereNull('resolved_at')
             ->when(
                 $latest,
@@ -101,12 +104,8 @@ class Dashboard extends Page
         ];
 
 
-        // 🔥 Hanya tampilkan alert yang belum resolved
-        // Menghitung jumlah alert yang masih aktif.
-        $this->activeAlertCount = Alert::query()
-            ->whereNotNull('type')
-            ->whereNull('resolved_at')
-            ->count();
+       // Menghitung alert threshold aktif pada perangkat yang ditampilkan.
+        $this->activeAlertCount = (clone $activeAlerts)->count();
 
         // Mengambil lima alert terbaru,
         // baik yang aktif maupun yang selesai.

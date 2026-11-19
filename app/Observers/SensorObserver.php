@@ -11,13 +11,12 @@ class SensorObserver
 {
     private const COOLDOWN_MINUTES = 5;
 
-    /**
-     * Dipanggil setiap kali data sensor baru dibuat.
-     */
+
     public function created(Sensor $sensor): void
-    {
-        $this->checkThreshold($sensor);
-    }
+        {
+            // Hanya data yang lolos Z-Score diperiksa threshold.
+            $this->checkThreshold($sensor);
+        }
 
     /**
      * 1. DETEKSI ANOMALI Z-SCORE
@@ -148,8 +147,16 @@ class SensorObserver
 
             // Nilai melebihi batas maksimum.
             if ($max !== null && $value > $max) {
+
+                $recommendation = match ($field) {
+                    'ph' => 'Pantau proses fermentasi dan pastikan wadah disimpan dalam kondisi yang sesuai.',
+                    'liquid_temperature' => 'Pindahkan wadah ke tempat yang lebih sejuk dan hindari sinar matahari langsung.',
+                    default => 'Periksa kondisi fermentasi.',
+                };
+
                 $message = "Sensor {$label} bernilai {$value}, "
-                    . "melampaui batas maksimum ({$max})!";
+                    . "melampaui batas maksimum ({$max})!\n"
+                    . "Saran: {$recommendation}";
 
                 $this->handleAlert(
                     $sensor,
@@ -163,8 +170,16 @@ class SensorObserver
 
             // Nilai di bawah batas minimum.
             if ($min !== null && $value < $min) {
+
+                $recommendation = match ($field) {
+                    'ph' => 'Amati perubahan keasaman dan kondisi fermentasi secara berkala.',
+                    'liquid_temperature' => 'Tempatkan wadah di lingkungan yang lebih hangat dengan suhu stabil.',
+                    default => 'Periksa kondisi fermentasi.',
+                };
+
                 $message = "Sensor {$label} bernilai {$value}, "
-                    . "di bawah batas minimum ({$min})!";
+                    . "di bawah batas minimum ({$min})!\n"
+                    . "Saran: {$recommendation}";
 
                 $this->handleAlert(
                     $sensor,
