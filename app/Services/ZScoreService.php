@@ -105,8 +105,42 @@ class ZScoreService
             'not_analyzed',
         ];
 
+        
         $history = Sensor::query()
             ->where('device_id', $deviceId)
+
+            // Baseline baru khusus pH, dimulai setelah ID 14474
+            ->when(
+                $parameter === 'ph_raw',
+                function ($query) {
+                    $startId = (int) config(
+                        'zscore.ph_baseline_start_id',
+                        0
+                    );
+
+                    if ($startId > 0) {
+                        $query->where('id', '>', $startId);
+                    }
+                }
+            )
+
+
+            // Baseline baru khusus temperature,
+            // dimulai setelah ID 14647
+            ->when(
+                $parameter === 'temp_raw',
+                function ($query) {
+                    $startId = (int) config(
+                        'zscore.temp_baseline_start_id',
+                        0
+                    );
+
+                    if ($startId > 0) {
+                        $query->where('id', '>', $startId);
+                    }
+                }
+            )
+
 
             // Ambil pembacaan yang tersedia dan berada
             // dalam rentang pengukuran sensor.
@@ -136,6 +170,7 @@ class ZScoreService
                         ->where('is_anomaly', false);
                 });
             })
+
 
             // Ambil 30 pembacaan yang lolos filter.
             ->orderByDesc('id')
