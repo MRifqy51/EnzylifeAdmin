@@ -2,9 +2,11 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
 use App\Models\Batch;
+use App\Models\Device;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\DB;
 
 class KalkulatorSop extends Page
 {
@@ -38,8 +40,8 @@ class KalkulatorSop extends Page
     {
         $this->tanggal_mulai = date('Y-m-d');
 
-        // Ambil nama perangkat dari tabel devices agar informatif
-        $device = \App\Models\Device::find($this->id_devices);
+        // Ambil nama perangkat dari tabel devices
+        $device = Device::find($this->id_devices);
         $this->nama_perangkat = $device ? $device->name . ' (ID: ' . $device->id . ')' : 'ESP32 Eco Enzyme';
     }
 
@@ -58,7 +60,7 @@ class KalkulatorSop extends Page
 
         // 1. Alokasikan 80% dari kapasitas wadah untuk total campuran bahan cair & padat
         // (20% sisanya disisakan sebagai ruang udara / headspace aman)
-        $vol_efektif = $kapasitas * 0.80; 
+        $vol_efektif = $kapasitas * 0.80;
 
         // 2. Hitung tiap bahan berdasarkan Rasio Baku 1 : 3 : 10 (Total 14 bagian)
         $this->molase         = round(($vol_efektif * 1) / 14, 2);  // 1/14 bagian
@@ -67,7 +69,7 @@ class KalkulatorSop extends Page
 
         // 3. Total volume bahan yang dimasukkan
         $this->vol_bahan = round($this->molase + $this->sampah_organik + $this->air, 2);
-        
+
         // 4. Hitung sisa ruang aman (ruang udara headspace 20%)
         $this->space_aman = round($kapasitas - $this->vol_bahan, 2);
     }
@@ -90,11 +92,11 @@ class KalkulatorSop extends Page
             'tanggal_mulai'   => 'required|date',
             'kapasitas_wadah' => 'required|numeric|min:1',
         ], [
-            'nama_batch.required'     => 'Nama batch wajib diisi!',
-            'nama_batch.min'          => 'Nama batch minimal 3 karakter.',
-            'kapasitas_wadah.required'=> 'Kapasitas wadah wajib diisi!',
-            'kapasitas_wadah.min'     => 'Kapasitas wadah harus lebih besar dari 0 Liter!',
-            'kapasitas_wadah.numeric' => 'Kapasitas wadah harus berupa angka!',
+            'nama_batch.required'      => 'Nama batch wajib diisi!',
+            'nama_batch.min'           => 'Nama batch minimal 3 karakter.',
+            'kapasitas_wadah.required' => 'Kapasitas wadah wajib diisi!',
+            'kapasitas_wadah.min'      => 'Kapasitas wadah harus lebih besar dari 0 Liter!',
+            'kapasitas_wadah.numeric'  => 'Kapasitas wadah harus berupa angka!',
         ]);
 
         // 2. Validasi SOP Interaktif (Wajib dicentang semua sebelum disimpan)
@@ -109,25 +111,34 @@ class KalkulatorSop extends Page
 
         $this->hitungFormulasi();
 
-        // 3. GENERATE ID BATCH OTOMATIS (Contoh: ECO-1, ECO-2, dst.)
-        $totalBatch = Batch::count() + 1;
-        $generatedIdBatch = 'ECO-' . $totalBatch;
+        // 3. Generate ID Batch otomatis berdasarkan nomor tertinggi yang ada di DB
+        $generatedIdBatch = DB::transaction(function () {
+            $maxNumber = Batch::where('id_batch', 'like', 'ECO-%')
+                ->lockForUpdate()
+                ->get()
+                ->map(fn ($b) => (int) str_replace('ECO-', '', $b->id_batch))
+                ->max() ?? 0;
 
-        // 4. Nonaktifkan batch lama jika ada (agar hanya ada 1 batch aktif)
-        Batch::where('id_devices', $this->id_devices)->update(['status' => 'Completed']);
+            $newId = 'ECO-' . ($maxNumber + 1);
 
-        // 5. Simpan batch baru ke database dengan id_batch custom
-        Batch::create([
-            'id_batch'        => $generatedIdBatch,
-            'id_devices'      => $this->id_devices,
-            'nama_batch'      => $this->nama_batch,
-            'tanggal_mulai'   => $this->tanggal_mulai,
-            'kapasitas_wadah' => $this->kapasitas_wadah,
-            'target_organik'  => $this->sampah_organik,
-            'target_molase'   => $this->molase,
-            'target_air'      => $this->air,
-            'status'          => 'Active',
-        ]);
+            // 4. Nonaktifkan batch lama jika ada (agar hanya ada 1 batch aktif per device)
+            Batch::where('id_devices', $this->id_devices)->update(['status' => 'Completed']);
+
+            // 5. Simpan batch baru ke database dengan id_batch custom
+            Batch::create([
+                'id_batch'        => $newId,
+                'id_devices'      => $this->id_devices,
+                'nama_batch'      => $this->nama_batch,
+                'tanggal_mulai'   => $this->tanggal_mulai,
+                'kapasitas_wadah' => $this->kapasitas_wadah,
+                'target_organik'  => $this->sampah_organik,
+                'target_molase'   => $this->molase,
+                'target_air'      => $this->air,
+                'status'          => 'Active',
+            ]);
+
+            return $newId;
+        });
 
         Notification::make()
             ->title('Berhasil!')

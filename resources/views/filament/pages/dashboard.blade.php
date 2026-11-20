@@ -23,7 +23,7 @@
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-red-500">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Gas (MQ-135)</p>
-                <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ $currentStats['gas'] ?? 0 }} ADC</p>
+                <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ $currentStats['gas'] ?? 0 }} PPM</p>
             </div>
 
             <div class="p-4 bg-white rounded-xl shadow dark:bg-gray-800 border-l-4 border-blue-500">
